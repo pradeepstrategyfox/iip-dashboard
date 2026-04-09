@@ -189,78 +189,25 @@
       </div>
     </section>
 
-    <!-- Data Quality -->
-    <section class="section">
+    <!-- Data Quality (hidden from client view, kept for internal use) -->
+    <section class="section" style="display:none" id="section-dq">
       <div class="sources-card">
         <h3>Data Quality Check</h3>
-        <p class="dq-note">Verified = Checkbox ticked AND agent notes present in OTHER DETAILS / FOLLOW UP. Filter-proof: data always fetched unfiltered from Google Sheets.</p>
         <div class="dq-grid">
-          <div class="dq-item dq-good">
-            <span class="dq-value" id="dq-total-support">-</span>
-            <span class="dq-label">Total Support Leads</span>
-          </div>
-          <div class="dq-item dq-good">
-            <span class="dq-value" id="dq-calls-checkbox">-</span>
-            <span class="dq-label">Calls (Checkbox TRUE)</span>
-          </div>
-          <div class="dq-item dq-good">
-            <span class="dq-value" id="dq-calls-verified">-</span>
-            <span class="dq-label">Calls (Verified w/ Notes)</span>
-          </div>
-          <div class="dq-item" id="dq-no-notes-wrapper">
-            <span class="dq-value" id="dq-called-no-notes">-</span>
-            <span class="dq-label">Called but No Notes</span>
-          </div>
-          <div class="dq-item" id="dq-notes-no-call-wrapper">
-            <span class="dq-value" id="dq-notes-no-call">-</span>
-            <span class="dq-label">Has Notes but Not Marked Called</span>
-          </div>
-          <div class="dq-item">
-            <span class="dq-value" id="dq-not-processed">-</span>
-            <span class="dq-label">Not Yet Processed</span>
-          </div>
+          <div class="dq-item dq-good"><span class="dq-value" id="dq-total-support">-</span><span class="dq-label">Total Support Leads</span></div>
+          <div class="dq-item dq-good"><span class="dq-value" id="dq-calls-checkbox">-</span><span class="dq-label">Calls (Checkbox TRUE)</span></div>
+          <div class="dq-item dq-good"><span class="dq-value" id="dq-calls-verified">-</span><span class="dq-label">Calls (Verified w/ Notes)</span></div>
+          <div class="dq-item" id="dq-no-notes-wrapper"><span class="dq-value" id="dq-called-no-notes">-</span><span class="dq-label">Called but No Notes</span></div>
+          <div class="dq-item" id="dq-notes-no-call-wrapper"><span class="dq-value" id="dq-notes-no-call">-</span><span class="dq-label">Has Notes but Not Marked Called</span></div>
+          <div class="dq-item"><span class="dq-value" id="dq-not-processed">-</span><span class="dq-label">Not Yet Processed</span></div>
         </div>
       </div>
     </section>
 
-    <!-- Data Sources -->
-    <section class="section">
+    <!-- Data Sources (hidden from client view, kept for internal use) -->
+    <section class="section" style="display:none" id="section-sources">
       <div class="sources-card">
-        <h3>Data Sources</h3>
-        <div class="sources-grid">
-          <div class="source-item">
-            <span class="source-dot source-dot-green"></span>
-            <div>
-              <strong>IIP - New Leads - Direct</strong>
-              <span class="source-desc">Meta Ads &rarr; Hindi Video + English Video Campaigns</span>
-              <span class="source-count" id="src-new-direct">- rows</span>
-            </div>
-          </div>
-          <div class="source-item">
-            <span class="source-dot source-dot-blue"></span>
-            <div>
-              <strong>IIP - Old Leads - Direct</strong>
-              <span class="source-desc">Meta Ads &rarr; Apple Carousel Campaign</span>
-              <span class="source-count" id="src-old-direct">- rows</span>
-            </div>
-          </div>
-          <div class="source-item">
-            <span class="source-dot source-dot-purple"></span>
-            <div>
-              <strong>IIP Leads | Sheet1</strong>
-              <span class="source-desc">Support Team &rarr; Apple Carousel Tracking</span>
-              <span class="source-count" id="src-sheet1">- rows</span>
-            </div>
-          </div>
-          <div class="source-item">
-            <span class="source-dot source-dot-orange"></span>
-            <div>
-              <strong>IIP Leads | Hindi Leads</strong>
-              <span class="source-desc">Support Team &rarr; Hindi + English Video Tracking</span>
-              <span class="source-count" id="src-hindi">- rows</span>
-            </div>
-          </div>
-        </div>
+        <span id="src-new-direct"></span><span id="src-old-direct"></span><span id="src-sheet1"></span><span id="src-hindi"></span>
       </div>
     </section>
   </main>

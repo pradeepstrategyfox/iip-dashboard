@@ -189,7 +189,7 @@ function renderFunnel(kpis) {
   const container = document.getElementById('funnel-container');
   const steps = [
     { label: 'Total Leads', value: kpis.totalMetaLeads, color: COLORS.primary },
-    { label: 'Transferred to Support', value: kpis.totalSupportLeads, color: '#6366F1' },
+    { label: 'Transferred to Support', value: kpis.totalSupportLeads, color: '#0EA5E9' },
     { label: 'Calls Made', value: kpis.totalCallsMade, color: COLORS.warning },
     { label: 'Responded', value: kpis.totalResponded, color: COLORS.success },
   ];
