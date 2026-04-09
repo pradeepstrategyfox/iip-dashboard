@@ -1,5 +1,3 @@
-const Papa = require('papaparse');
-
 // ─── Sheet Configuration ───────────────────────────────────────────────────────
 const SHEET_IDS = {
   IIP_LEADS: '14YB5KhwvAVnyw6zDdxa0AZhscIIDq4l7OUyzi3vfODk',
@@ -7,33 +5,38 @@ const SHEET_IDS = {
   OLD_LEADS_DIRECT: '1wW7AapS4ulJzUYRNiX7XTdOVknW_djZuyWRf3YdyNhs',
 };
 
+const GOOGLE_API_KEY = 'AIzaSyC2HeaC1ozAIc6wUgzS2VYFcJEhgUo3uQg';
+
 // ─── In-memory cache (persists across warm invocations) ─────────────────────
 let cache = { data: null, timestamp: 0 };
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
-// ─── Helpers ────────────────────────────────────────────────────────────────────
-// CRITICAL: We use `tq=SELECT *` to bypass any active Google Sheets filters.
-// Without this, if someone has a filter active on the sheet, the CSV export
-// returns only the visible (filtered) rows, causing incorrect counts.
-function csvUrl(id, sheetName) {
-  let url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv`;
-  url += '&tq=' + encodeURIComponent('SELECT *');
-  if (sheetName) url += `&sheet=${encodeURIComponent(sheetName)}`;
-  return url;
-}
+// ─── Google Sheets API v4 Fetch ─────────────────────────────────────────────
+// Uses the REST API which ALWAYS returns ALL rows regardless of active filters.
+// The old gviz/tq endpoint respected sheet filters, causing wrong counts.
+async function fetchSheet(spreadsheetId, sheetName) {
+  const range = encodeURIComponent(sheetName || 'Sheet1');
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?key=${GOOGLE_API_KEY}&valueRenderOption=FORMATTED_VALUE`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Sheets API error (${res.status}) for ${sheetName}: ${errText.slice(0, 200)}`);
+  }
+  const json = await res.json();
+  const rows = json.values || [];
+  if (rows.length < 2) return [];
 
-async function fetchCSV(id, sheetName) {
-  const url = csvUrl(id, sheetName);
-  const res = await fetch(url, {
-    headers: { 'User-Agent': 'IIP-Dashboard/1.0' },
-  });
-  if (!res.ok) throw new Error(`Sheet fetch failed (${res.status}): ${sheetName || 'default'}`);
-  const text = await res.text();
-  const { data } = Papa.parse(text, {
-    header: true,
-    skipEmptyLines: true,
-    transformHeader: (h) => h.trim(),
-  });
+  // First row is headers, rest is data
+  const headers = rows[0].map((h) => (h || '').trim());
+  const data = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const obj = {};
+    for (let j = 0; j < headers.length; j++) {
+      obj[headers[j]] = row[j] !== undefined ? row[j] : '';
+    }
+    data.push(obj);
+  }
   return data;
 }
 
@@ -102,7 +105,7 @@ function hasContent(val) {
 // ─── Process IIP Leads Sheet1 (Apple Carousel support data) ─────────────────
 function processSheet1(rows) {
   return rows
-    .filter((r) => r.NAME)
+    .filter((r) => r.NAME || r.CALLED || r['PHONE NUMBER'] || hasContent(r['OTHER DETAILS']))
     .map((r) => {
       const called = normBool(r.CALLED);
       const responded = normBool(r.RESPONDED);
@@ -136,7 +139,7 @@ function processSheet1(rows) {
 // This sheet contains support tracking for BOTH Hindi Video and English Video leads
 function processHindiLeads(rows) {
   return rows
-    .filter((r) => r.NAME)
+    .filter((r) => r.NAME || r.CALLED || r['PHONE NUMBER'] || hasContent(r['OTHER DETAILS']))
     .map((r) => {
       const industry = r[''] || r[' '] || r['  '] || Object.values(r)[4] || '';
       const rawCampaign = (r.campaign_name || '').trim();
@@ -333,10 +336,10 @@ async function fetchAllData(forceRefresh = false) {
   }
 
   const [sheet1Raw, hindiRaw, newDirectRaw, oldDirectRaw] = await Promise.all([
-    fetchCSV(SHEET_IDS.IIP_LEADS, 'Sheet1'),
-    fetchCSV(SHEET_IDS.IIP_LEADS, 'Hindi Leads'),
-    fetchCSV(SHEET_IDS.NEW_LEADS_DIRECT, null),
-    fetchCSV(SHEET_IDS.OLD_LEADS_DIRECT, null),
+    fetchSheet(SHEET_IDS.IIP_LEADS, 'Sheet1'),
+    fetchSheet(SHEET_IDS.IIP_LEADS, 'Hindi Leads'),
+    fetchSheet(SHEET_IDS.NEW_LEADS_DIRECT, 'Sheet1'),
+    fetchSheet(SHEET_IDS.OLD_LEADS_DIRECT, 'Sheet1'),
   ]);
 
   const metaNew = processMetaLeads(newDirectRaw, 'new');

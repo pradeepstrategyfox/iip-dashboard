@@ -102,7 +102,7 @@ function showError(msg) {
 }
 
 function formatNumber(n) {
-  if (n === null || n === undefined) return '—';
+  if (n === null || n === undefined) return '-';
   return n.toLocaleString('en-IN');
 }
 
@@ -139,13 +139,7 @@ function renderAll(data) {
   renderCallPerformance(aggregated.callPerformance);
   renderStatusDistribution(aggregated.statusDistribution);
   renderPlatformDistribution(aggregated.platformDistribution);
-  renderIndustryChart(aggregated.industryDistribution);
   renderInterestChart(aggregated.interestDistribution);
-  renderTeamChart(aggregated.teamPerformance);
-  renderStatusByCampaign(aggregated.statusByCampaign);
-
-  // Table
-  renderRecentLeads(aggregated.recentLeads);
 
   // Data Quality
   renderDataQuality(aggregated.kpis, aggregated.dataQuality);
@@ -163,17 +157,14 @@ function renderKPIs(kpis) {
   animateValue('kpi-hindi-leads', kpis.hindiVideoLeads);
   animateValue('kpi-english-leads', kpis.englishVideoLeads);
   animateValue('kpi-carousel-leads', kpis.appleCarouselLeads);
-  // Show verified count as main, checkbox count as subtitle
-  animateValue('kpi-calls-made', kpis.totalCallsVerified);
+  // Checkbox count as primary, verified as subtitle
+  animateValue('kpi-calls-made', kpis.totalCallsMade);
   document.getElementById('kpi-calls-checkbox').textContent =
-    `${formatNumber(kpis.totalCallsMade)} checkbox ticked`;
-  animateValue('kpi-responded', kpis.totalRespondedVerified);
+    `${formatNumber(kpis.totalCallsVerified)} verified with notes`;
+  animateValue('kpi-responded', kpis.totalResponded);
   document.getElementById('kpi-responded-checkbox').textContent =
-    `${formatNumber(kpis.totalResponded)} checkbox ticked`;
-  const verifiedRate = kpis.totalCallsVerified > 0
-    ? ((kpis.totalRespondedVerified / kpis.totalCallsVerified) * 100).toFixed(1)
-    : '0';
-  document.getElementById('kpi-response-rate').textContent = `${verifiedRate}%`;
+    `${formatNumber(kpis.totalRespondedVerified)} verified with notes`;
+  document.getElementById('kpi-response-rate').textContent = `${kpis.responseRate}%`;
 }
 
 function animateValue(elementId, target) {
@@ -198,9 +189,9 @@ function renderFunnel(kpis) {
   const container = document.getElementById('funnel-container');
   const steps = [
     { label: 'Total Leads', value: kpis.totalMetaLeads, color: COLORS.primary },
-    { label: 'Transferred to Support', value: kpis.totalSupportLeads, color: COLORS.newCampaign },
-    { label: 'Calls Made (Verified)', value: kpis.totalCallsVerified, color: COLORS.warning },
-    { label: 'Responded (Verified)', value: kpis.totalRespondedVerified, color: COLORS.success },
+    { label: 'Transferred to Support', value: kpis.totalSupportLeads, color: '#6366F1' },
+    { label: 'Calls Made', value: kpis.totalCallsMade, color: COLORS.warning },
+    { label: 'Responded', value: kpis.totalResponded, color: COLORS.success },
   ];
 
   let html = '';
@@ -390,15 +381,15 @@ function renderCallPerformance(callPerf) {
           borderWidth: 1,
         },
         {
-          label: 'Calls (Verified)',
-          data: campKeys.map((k) => (callPerf[k] || {}).calledVerified || 0),
+          label: 'Calls Made',
+          data: campKeys.map((k) => (callPerf[k] || {}).called || 0),
           backgroundColor: 'rgba(217,119,6,0.7)',
           borderColor: COLORS.warning,
           borderWidth: 1,
         },
         {
-          label: 'Responded (Verified)',
-          data: campKeys.map((k) => (callPerf[k] || {}).respondedVerified || 0),
+          label: 'Responded',
+          data: campKeys.map((k) => (callPerf[k] || {}).responded || 0),
           backgroundColor: 'rgba(5,150,105,0.7)',
           borderColor: COLORS.success,
           borderWidth: 1,
@@ -562,7 +553,7 @@ function renderIndustryChart(industryDist) {
 function renderInterestChart(interestDist) {
   destroyChart('interest');
   const entries = Object.entries(interestDist)
-    .filter(([k]) => k && k !== 'unknown')
+    .filter(([k]) => k && k !== 'unknown' && !k.includes('why are you interested'))
     .sort((a, b) => b[1] - a[1]);
 
   const ctx = document.getElementById('chart-interest').getContext('2d');
@@ -706,7 +697,7 @@ function renderRecentLeads(leads) {
       const dt = lead.date ? new Date(lead.date + 'T00:00:00') : null;
       const dateStr = dt
         ? dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-        : '—';
+        : '-';
       const platformClass = lead.platform === 'fb' ? 'platform-fb' : 'platform-ig';
       const platformLabel = lead.platform === 'fb' ? 'FB' : lead.platform === 'ig' ? 'IG' : lead.platform;
       const campMap = {
@@ -720,11 +711,11 @@ function renderRecentLeads(leads) {
 
       return `<tr>
         <td>${dateStr}</td>
-        <td><strong>${lead.name || '—'}</strong></td>
+        <td><strong>${lead.name || '-'}</strong></td>
         <td><span class="campaign-badge ${campaignClass}">${campaignLabel}</span></td>
         <td><span class="platform-badge ${platformClass}">${platformLabel}</span></td>
-        <td>${capitalize(lead.industry) || '—'}</td>
-        <td>${capitalize(lead.interest) || '—'}</td>
+        <td>${capitalize(lead.industry) || '-'}</td>
+        <td>${capitalize(lead.interest) || '-'}</td>
       </tr>`;
     })
     .join('');
