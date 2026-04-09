@@ -47,33 +47,51 @@ function normDate(val) {
   return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
 }
 
-// ─── Process raw Meta leads ─────────────────────────────────────────────────
-function processMetaLeads(rows, campaign) {
-  return rows
-    .filter((r) => r.full_name || r.phone_number)
-    .map((r) => ({
-      campaign,
-      date: normDate(r.created_time),
-      datetime: r.created_time || null,
-      name: (r.full_name || '').trim(),
-      phone: (r.phone_number || '').trim(),
-      email: (r.email || '').trim(),
-      platform: (r.platform || '').trim().toLowerCase(),
-      industry: (r['which_industry_to_you_currently_work_in?'] || '').trim().toLowerCase(),
-      interest: (r['why_are_you_interested_in_this_program?'] || '').trim().toLowerCase().replace(/_/g, ' '),
-      campaignName: (r.campaign_name || '').trim(),
-      adsetName: (r.adset_name || '').trim(),
-      formName: (r.form_name || '').trim(),
-      leadStatus: (r.lead_status || '').trim(),
-    }));
+// ─── Campaign Classification ────────────────────────────────────────────────
+// "IIP - New Leads - Direct" contains TWO campaigns:
+//   - "SF - CPE Hindi Leads - ..."  → Hindi Video (Director speaking Hindi)
+//   - "SF - CPE Video Leads - ..."  → English Video (Director speaking English)
+// "IIP - Old Leads - Direct" contains ONE campaign:
+//   - "SF - Instant Forms - ..."    → Apple Carousel (English carousel ad)
+function classifyCampaign(campaignName, source) {
+  const cn = (campaignName || '').toLowerCase();
+  if (source === 'old') return 'Apple Carousel';
+  if (cn.includes('hindi')) return 'Hindi Video';
+  if (cn.includes('video') || cn.includes('cpe')) return 'English Video';
+  return 'English Video'; // default for new leads
 }
 
-// ─── Process IIP Leads Sheet1 (Old campaign) ────────────────────────────────
+// ─── Process raw Meta leads ─────────────────────────────────────────────────
+function processMetaLeads(rows, source) {
+  return rows
+    .filter((r) => r.full_name || r.phone_number)
+    .map((r) => {
+      const rawCampaign = (r.campaign_name || '').trim();
+      return {
+        campaign: classifyCampaign(rawCampaign, source),
+        campaignRaw: rawCampaign,
+        date: normDate(r.created_time),
+        datetime: r.created_time || null,
+        name: (r.full_name || '').trim(),
+        phone: (r.phone_number || '').trim(),
+        email: (r.email || '').trim(),
+        platform: (r.platform || '').trim().toLowerCase(),
+        industry: (r['which_industry_to_you_currently_work_in?'] || '').trim().toLowerCase(),
+        interest: (r['why_are_you_interested_in_this_program?'] || '').trim().toLowerCase().replace(/_/g, ' '),
+        campaignName: rawCampaign,
+        adsetName: (r.adset_name || '').trim(),
+        formName: (r.form_name || '').trim(),
+        leadStatus: (r.lead_status || '').trim(),
+      };
+    });
+}
+
+// ─── Process IIP Leads Sheet1 (Apple Carousel support data) ─────────────────
 function processSheet1(rows) {
   return rows
     .filter((r) => r.NAME)
     .map((r) => ({
-      campaign: 'Old Campaign',
+      campaign: 'Apple Carousel',
       name: (r.NAME || '').trim(),
       phone: (r['PHONE NUMBER'] || '').trim(),
       industry: (r['CURRENT INDUSTRY'] || '').trim().toLowerCase(),
@@ -87,20 +105,23 @@ function processSheet1(rows) {
     }));
 }
 
-// ─── Process IIP Leads Hindi Leads (New campaign) ───────────────────────────
+// ─── Process IIP Leads Hindi Leads (Video campaigns support data) ───────────
+// This sheet contains support tracking for BOTH Hindi Video and English Video leads
 function processHindiLeads(rows) {
   return rows
     .filter((r) => r.NAME)
     .map((r) => {
       const industry = r[''] || r[' '] || r['  '] || Object.values(r)[4] || '';
+      const rawCampaign = (r.campaign_name || '').trim();
       return {
-        campaign: 'New Campaign',
+        campaign: classifyCampaign(rawCampaign, 'new'),
+        campaignRaw: rawCampaign,
         date: normDate(r.created_time),
         name: (r.NAME || '').trim(),
         phone: (r['PHONE NUMBER'] || '').trim(),
         email: (r.EMAIL || '').trim(),
         platform: (r.platform || '').trim().toLowerCase(),
-        campaignName: (r.campaign_name || '').trim(),
+        campaignName: rawCampaign,
         adsetName: (r.adset_name || '').trim(),
         industry: String(industry).trim().toLowerCase(),
         interest: (r['WHY INTERESTED'] || '').trim().toLowerCase().replace(/_/g, ' '),
@@ -112,33 +133,45 @@ function processHindiLeads(rows) {
     });
 }
 
+// ─── Campaign keys ──────────────────────────────────────────────────────────
+const CAMPAIGNS = ['Hindi Video', 'English Video', 'Apple Carousel'];
+
+function countByCampaign(leads) {
+  const out = {};
+  CAMPAIGNS.forEach((c) => { out[c] = 0; });
+  for (const l of leads) out[l.campaign] = (out[l.campaign] || 0) + 1;
+  return out;
+}
+
 // ─── Aggregate ──────────────────────────────────────────────────────────────
 function aggregate(metaNew, metaOld, sheet1, hindiLeads) {
   const allMetaLeads = [...metaNew, ...metaOld];
   const allSupportLeads = [...sheet1, ...hindiLeads];
 
+  // Per-campaign counts from Meta
+  const campCounts = countByCampaign(allMetaLeads);
+
   const totalMetaLeads = allMetaLeads.length;
-  const newCampaignLeads = metaNew.length;
-  const oldCampaignLeads = metaOld.length;
   const totalCallsMade = allSupportLeads.filter((l) => l.called).length;
   const totalResponded = allSupportLeads.filter((l) => l.responded).length;
   const totalSupportLeads = allSupportLeads.length;
   const callRate = totalSupportLeads > 0 ? ((totalCallsMade / totalSupportLeads) * 100).toFixed(1) : '0';
   const responseRate = totalCallsMade > 0 ? ((totalResponded / totalCallsMade) * 100).toFixed(1) : '0';
 
-  // Daily Leads
+  // Daily Leads (3 campaigns)
   const dailyMap = {};
   for (const lead of allMetaLeads) {
     if (!lead.date) continue;
-    if (!dailyMap[lead.date]) dailyMap[lead.date] = { new: 0, old: 0 };
-    if (lead.campaign === 'New Campaign') dailyMap[lead.date].new++;
-    else dailyMap[lead.date].old++;
+    if (!dailyMap[lead.date]) dailyMap[lead.date] = { hindiVideo: 0, englishVideo: 0, appleCarousel: 0 };
+    if (lead.campaign === 'Hindi Video') dailyMap[lead.date].hindiVideo++;
+    else if (lead.campaign === 'English Video') dailyMap[lead.date].englishVideo++;
+    else dailyMap[lead.date].appleCarousel++;
   }
   const dailyLeads = Object.entries(dailyMap)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, counts]) => ({ date, ...counts, total: counts.new + counts.old }));
+    .map(([date, c]) => ({ date, ...c, total: c.hindiVideo + c.englishVideo + c.appleCarousel }));
 
-  // Weekly Leads
+  // Weekly Leads (3 campaigns)
   const weeklyMap = {};
   for (const lead of allMetaLeads) {
     if (!lead.date) continue;
@@ -146,13 +179,14 @@ function aggregate(metaNew, metaOld, sheet1, hindiLeads) {
     const weekStart = new Date(d);
     weekStart.setDate(d.getDate() - d.getDay());
     const weekKey = weekStart.toISOString().slice(0, 10);
-    if (!weeklyMap[weekKey]) weeklyMap[weekKey] = { new: 0, old: 0 };
-    if (lead.campaign === 'New Campaign') weeklyMap[weekKey].new++;
-    else weeklyMap[weekKey].old++;
+    if (!weeklyMap[weekKey]) weeklyMap[weekKey] = { hindiVideo: 0, englishVideo: 0, appleCarousel: 0 };
+    if (lead.campaign === 'Hindi Video') weeklyMap[weekKey].hindiVideo++;
+    else if (lead.campaign === 'English Video') weeklyMap[weekKey].englishVideo++;
+    else weeklyMap[weekKey].appleCarousel++;
   }
   const weeklyLeads = Object.entries(weeklyMap)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([week, counts]) => ({ week, ...counts, total: counts.new + counts.old }));
+    .map(([week, c]) => ({ week, ...c, total: c.hindiVideo + c.englishVideo + c.appleCarousel }));
 
   // Distributions
   const platformMap = {}, industryMap = {}, interestMap = {}, statusMap = {};
@@ -169,11 +203,16 @@ function aggregate(metaNew, metaOld, sheet1, hindiLeads) {
     if (s) statusMap[s] = (statusMap[s] || 0) + 1;
   }
 
-  // Call Performance by Campaign
-  const callPerf = {
-    old: { total: sheet1.length, called: sheet1.filter((l) => l.called).length, responded: sheet1.filter((l) => l.responded).length },
-    new: { total: hindiLeads.length, called: hindiLeads.filter((l) => l.called).length, responded: hindiLeads.filter((l) => l.responded).length },
-  };
+  // Call Performance by Campaign (3 campaigns from support data)
+  const callPerf = {};
+  for (const c of CAMPAIGNS) {
+    const subset = allSupportLeads.filter((l) => l.campaign === c);
+    callPerf[c] = {
+      total: subset.length,
+      called: subset.filter((l) => l.called).length,
+      responded: subset.filter((l) => l.responded).length,
+    };
+  }
 
   // Team Performance
   const teamMap = {};
@@ -185,15 +224,13 @@ function aggregate(metaNew, metaOld, sheet1, hindiLeads) {
     if (lead.responded) teamMap[t].responded++;
   }
 
-  // Status by Campaign
-  const statusByCampaign = { old: {}, new: {} };
-  for (const lead of sheet1) {
+  // Status by Campaign (3 campaigns)
+  const statusByCampaign = {};
+  for (const c of CAMPAIGNS) statusByCampaign[c] = {};
+  for (const lead of allSupportLeads) {
     const s = lead.status || lead.statusAlt || 'Not Updated';
-    statusByCampaign.old[s] = (statusByCampaign.old[s] || 0) + 1;
-  }
-  for (const lead of hindiLeads) {
-    const s = lead.status || 'Not Updated';
-    statusByCampaign.new[s] = (statusByCampaign.new[s] || 0) + 1;
+    const c = lead.campaign;
+    if (statusByCampaign[c]) statusByCampaign[c][s] = (statusByCampaign[c][s] || 0) + 1;
   }
 
   // Recent Leads
@@ -205,7 +242,10 @@ function aggregate(metaNew, metaOld, sheet1, hindiLeads) {
 
   return {
     kpis: {
-      totalMetaLeads, newCampaignLeads, oldCampaignLeads,
+      totalMetaLeads,
+      hindiVideoLeads: campCounts['Hindi Video'] || 0,
+      englishVideoLeads: campCounts['English Video'] || 0,
+      appleCarouselLeads: campCounts['Apple Carousel'] || 0,
       totalSupportLeads, totalCallsMade, totalResponded,
       callRate: parseFloat(callRate), responseRate: parseFloat(responseRate),
       notCalled: totalSupportLeads - totalCallsMade,
@@ -233,8 +273,8 @@ async function fetchAllData(forceRefresh = false) {
     fetchCSV(SHEET_IDS.OLD_LEADS_DIRECT, null),
   ]);
 
-  const metaNew = processMetaLeads(newDirectRaw, 'New Campaign');
-  const metaOld = processMetaLeads(oldDirectRaw, 'Old Campaign');
+  const metaNew = processMetaLeads(newDirectRaw, 'new');
+  const metaOld = processMetaLeads(oldDirectRaw, 'old');
   const sheet1 = processSheet1(sheet1Raw);
   const hindiLeads = processHindiLeads(hindiRaw);
   const aggregated = aggregate(metaNew, metaOld, sheet1, hindiLeads);

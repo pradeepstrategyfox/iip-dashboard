@@ -12,10 +12,9 @@ let dailyViewMode = 'daily';
 const COLORS = {
   primary: '#4F46E5',
   primaryLight: '#818CF8',
-  newCampaign: '#7C3AED',
-  newLight: '#A78BFA',
-  oldCampaign: '#0891B2',
-  oldLight: '#22D3EE',
+  hindiVideo: '#7C3AED',
+  englishVideo: '#0891B2',
+  appleCarousel: '#F97316',
   success: '#059669',
   warning: '#D97706',
   danger: '#DC2626',
@@ -158,8 +157,9 @@ function renderAll(data) {
 // ─── KPI Cards ──────────────────────────────────────────────────────────────
 function renderKPIs(kpis) {
   animateValue('kpi-total-leads', kpis.totalMetaLeads);
-  animateValue('kpi-new-leads', kpis.newCampaignLeads);
-  animateValue('kpi-old-leads', kpis.oldCampaignLeads);
+  animateValue('kpi-hindi-leads', kpis.hindiVideoLeads);
+  animateValue('kpi-english-leads', kpis.englishVideoLeads);
+  animateValue('kpi-carousel-leads', kpis.appleCarouselLeads);
   animateValue('kpi-calls-made', kpis.totalCallsMade);
   animateValue('kpi-responded', kpis.totalResponded);
   document.getElementById('kpi-response-rate').textContent = `${kpis.responseRate}%`;
@@ -247,19 +247,28 @@ function renderDailyLeadsChart(aggregated) {
       labels,
       datasets: [
         {
-          label: 'New Campaign (Hindi)',
-          data: source.map((d) => d.new),
-          backgroundColor: `rgba(124,58,237,0.8)`,
-          borderColor: COLORS.newCampaign,
+          label: 'Hindi Video Ad',
+          data: source.map((d) => d.hindiVideo),
+          backgroundColor: 'rgba(124,58,237,0.8)',
+          borderColor: COLORS.hindiVideo,
           borderWidth: 1,
           borderRadius: 4,
           stack: 'stack',
         },
         {
-          label: 'Old Campaign (English)',
-          data: source.map((d) => d.old),
-          backgroundColor: `rgba(8,145,178,0.8)`,
-          borderColor: COLORS.oldCampaign,
+          label: 'English Video Ad',
+          data: source.map((d) => d.englishVideo),
+          backgroundColor: 'rgba(8,145,178,0.8)',
+          borderColor: COLORS.englishVideo,
+          borderWidth: 1,
+          borderRadius: 4,
+          stack: 'stack',
+        },
+        {
+          label: 'Apple Carousel Ad',
+          data: source.map((d) => d.appleCarousel),
+          backgroundColor: 'rgba(249,115,22,0.8)',
+          borderColor: COLORS.appleCarousel,
           borderWidth: 1,
           borderRadius: 4,
           stack: 'stack',
@@ -304,10 +313,10 @@ function renderCampaignSplit(kpis) {
   chartInstances['campaignSplit'] = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: ['New Campaign (Hindi)', 'Old Campaign (English)'],
+      labels: ['Hindi Video Ad', 'English Video Ad', 'Apple Carousel Ad'],
       datasets: [{
-        data: [kpis.newCampaignLeads, kpis.oldCampaignLeads],
-        backgroundColor: [COLORS.newCampaign, COLORS.oldCampaign],
+        data: [kpis.hindiVideoLeads, kpis.englishVideoLeads, kpis.appleCarouselLeads],
+        backgroundColor: [COLORS.hindiVideo, COLORS.englishVideo, COLORS.appleCarousel],
         borderWidth: 0,
         hoverOffset: 8,
       }],
@@ -354,28 +363,31 @@ function renderCallPerformance(callPerf) {
   destroyChart('callPerf');
   const ctx = document.getElementById('chart-call-perf').getContext('2d');
 
+  const campKeys = ['Hindi Video', 'English Video', 'Apple Carousel'];
+  const campLabels = ['Hindi Video Ad', 'English Video Ad', 'Apple Carousel Ad'];
+
   chartInstances['callPerf'] = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: ['New Campaign', 'Old Campaign'],
+      labels: campLabels,
       datasets: [
         {
           label: 'Total Leads',
-          data: [callPerf.new.total, callPerf.old.total],
+          data: campKeys.map((k) => (callPerf[k] || {}).total || 0),
           backgroundColor: 'rgba(148,163,184,0.3)',
           borderColor: '#94A3B8',
           borderWidth: 1,
         },
         {
           label: 'Calls Made',
-          data: [callPerf.new.called, callPerf.old.called],
+          data: campKeys.map((k) => (callPerf[k] || {}).called || 0),
           backgroundColor: 'rgba(217,119,6,0.7)',
           borderColor: COLORS.warning,
           borderWidth: 1,
         },
         {
           label: 'Responded',
-          data: [callPerf.new.responded, callPerf.old.responded],
+          data: campKeys.map((k) => (callPerf[k] || {}).responded || 0),
           backgroundColor: 'rgba(5,150,105,0.7)',
           borderColor: COLORS.success,
           borderWidth: 1,
@@ -398,7 +410,7 @@ function renderCallPerformance(callPerf) {
           callbacks: {
             afterBody: (items) => {
               const idx = items[0].dataIndex;
-              const camp = idx === 0 ? callPerf.new : callPerf.old;
+              const camp = callPerf[campKeys[idx]] || {};
               const callRate = camp.total > 0 ? ((camp.called / camp.total) * 100).toFixed(0) : 0;
               const respRate = camp.called > 0 ? ((camp.responded / camp.called) * 100).toFixed(0) : 0;
               return `Call Rate: ${callRate}%\nResponse Rate: ${respRate}%`;
@@ -638,26 +650,21 @@ function renderStatusByCampaign(statusByCampaign) {
     Object.keys(map).forEach((s) => { if (s) allStatuses.add(s); });
   });
   const statuses = [...allStatuses].filter((s) => s !== 'Not Updated').sort();
-  if (statusByCampaign.old['Not Updated'] || statusByCampaign.new['Not Updated']) {
-    statuses.push('Not Updated');
-  }
+  const hasNotUpdated = Object.values(statusByCampaign).some((m) => m['Not Updated']);
+  if (hasNotUpdated) statuses.push('Not Updated');
 
-  const datasets = [
-    {
-      label: 'Old Campaign',
-      data: statuses.map((s) => statusByCampaign.old[s] || 0),
-      backgroundColor: 'rgba(8,145,178,0.7)',
-      borderColor: COLORS.oldCampaign,
-      borderWidth: 1,
-    },
-    {
-      label: 'New Campaign',
-      data: statuses.map((s) => statusByCampaign.new[s] || 0),
-      backgroundColor: 'rgba(124,58,237,0.7)',
-      borderColor: COLORS.newCampaign,
-      borderWidth: 1,
-    },
+  const campConfig = [
+    { key: 'Hindi Video', label: 'Hindi Video Ad', bg: 'rgba(124,58,237,0.7)', border: COLORS.hindiVideo },
+    { key: 'English Video', label: 'English Video Ad', bg: 'rgba(8,145,178,0.7)', border: COLORS.englishVideo },
+    { key: 'Apple Carousel', label: 'Apple Carousel Ad', bg: 'rgba(249,115,22,0.7)', border: COLORS.appleCarousel },
   ];
+  const datasets = campConfig.map((c) => ({
+    label: c.label,
+    data: statuses.map((s) => (statusByCampaign[c.key] || {})[s] || 0),
+    backgroundColor: c.bg,
+    borderColor: c.border,
+    borderWidth: 1,
+  }));
 
   const ctx = document.getElementById('chart-status-campaign').getContext('2d');
   chartInstances['statusCampaign'] = new Chart(ctx, {
@@ -691,8 +698,14 @@ function renderRecentLeads(leads) {
         : '—';
       const platformClass = lead.platform === 'fb' ? 'platform-fb' : 'platform-ig';
       const platformLabel = lead.platform === 'fb' ? 'FB' : lead.platform === 'ig' ? 'IG' : lead.platform;
-      const campaignClass = lead.campaign === 'New Campaign' ? 'campaign-new' : 'campaign-old';
-      const campaignLabel = lead.campaign === 'New Campaign' ? 'New' : 'Old';
+      const campMap = {
+        'Hindi Video': { cls: 'campaign-hindi', lbl: 'Hindi Video' },
+        'English Video': { cls: 'campaign-english', lbl: 'English Video' },
+        'Apple Carousel': { cls: 'campaign-carousel', lbl: 'Apple Carousel' },
+      };
+      const cm = campMap[lead.campaign] || { cls: 'campaign-hindi', lbl: lead.campaign };
+      const campaignClass = cm.cls;
+      const campaignLabel = cm.lbl;
 
       return `<tr>
         <td>${dateStr}</td>
