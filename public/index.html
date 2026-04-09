@@ -93,7 +93,8 @@
         </div>
         <div class="kpi-content">
           <span class="kpi-value" id="kpi-calls-made">—</span>
-          <span class="kpi-label">Calls Made</span>
+          <span class="kpi-label">Calls Made (Verified)</span>
+          <span class="kpi-sub" id="kpi-calls-checkbox">—</span>
         </div>
       </div>
       <div class="kpi-card kpi-responded">
@@ -102,7 +103,8 @@
         </div>
         <div class="kpi-content">
           <span class="kpi-value" id="kpi-responded">—</span>
-          <span class="kpi-label">Responded</span>
+          <span class="kpi-label">Responded (Verified)</span>
+          <span class="kpi-sub" id="kpi-responded-checkbox">—</span>
         </div>
       </div>
       <div class="kpi-card kpi-rate">
@@ -239,6 +241,40 @@
             </thead>
             <tbody id="leads-tbody"></tbody>
           </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Data Quality -->
+    <section class="section">
+      <div class="sources-card">
+        <h3>Data Quality Check</h3>
+        <p class="dq-note">Verified = Checkbox ticked AND agent notes present in OTHER DETAILS / FOLLOW UP. Filter-proof: data always fetched unfiltered from Google Sheets.</p>
+        <div class="dq-grid">
+          <div class="dq-item dq-good">
+            <span class="dq-value" id="dq-total-support">—</span>
+            <span class="dq-label">Total Support Leads</span>
+          </div>
+          <div class="dq-item dq-good">
+            <span class="dq-value" id="dq-calls-checkbox">—</span>
+            <span class="dq-label">Calls (Checkbox TRUE)</span>
+          </div>
+          <div class="dq-item dq-good">
+            <span class="dq-value" id="dq-calls-verified">—</span>
+            <span class="dq-label">Calls (Verified w/ Notes)</span>
+          </div>
+          <div class="dq-item" id="dq-no-notes-wrapper">
+            <span class="dq-value" id="dq-called-no-notes">—</span>
+            <span class="dq-label">Called but No Notes</span>
+          </div>
+          <div class="dq-item" id="dq-notes-no-call-wrapper">
+            <span class="dq-value" id="dq-notes-no-call">—</span>
+            <span class="dq-label">Has Notes but Not Marked Called</span>
+          </div>
+          <div class="dq-item">
+            <span class="dq-value" id="dq-not-processed">—</span>
+            <span class="dq-label">Not Yet Processed</span>
+          </div>
         </div>
       </div>
     </section>

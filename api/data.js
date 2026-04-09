@@ -12,8 +12,12 @@ let cache = { data: null, timestamp: 0 };
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
+// CRITICAL: We use `tq=SELECT *` to bypass any active Google Sheets filters.
+// Without this, if someone has a filter active on the sheet, the CSV export
+// returns only the visible (filtered) rows, causing incorrect counts.
 function csvUrl(id, sheetName) {
   let url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv`;
+  url += '&tq=' + encodeURIComponent('SELECT *');
   if (sheetName) url += `&sheet=${encodeURIComponent(sheetName)}`;
   return url;
 }
@@ -33,10 +37,12 @@ async function fetchCSV(id, sheetName) {
   return data;
 }
 
+// Strict boolean: ONLY actual checkbox TRUE counts.
+// Rejects "CREATED", empty, numbers, or any other non-TRUE value.
 function normBool(val) {
   if (!val) return false;
   const v = String(val).trim().toUpperCase();
-  return v === 'TRUE' || v === 'YES' || v === '1';
+  return v === 'TRUE';
 }
 
 function normDate(val) {
@@ -86,23 +92,44 @@ function processMetaLeads(rows, source) {
     });
 }
 
+// ─── Cross-verification helper ──────────────────────────────────────────────
+// A call is "verified" if CALLED=TRUE AND there is content in OTHER DETAILS
+// (meaning the support agent actually wrote notes about the call).
+function hasContent(val) {
+  return val && String(val).trim().length > 0;
+}
+
 // ─── Process IIP Leads Sheet1 (Apple Carousel support data) ─────────────────
 function processSheet1(rows) {
   return rows
     .filter((r) => r.NAME)
-    .map((r) => ({
-      campaign: 'Apple Carousel',
-      name: (r.NAME || '').trim(),
-      phone: (r['PHONE NUMBER'] || '').trim(),
-      industry: (r['CURRENT INDUSTRY'] || '').trim().toLowerCase(),
-      interest: (r['WHY INTERESTED'] || '').trim().toLowerCase().replace(/_/g, ' '),
-      called: normBool(r.CALLED),
-      responded: normBool(r.RESPONDED),
-      status: (r.STATUS || '').trim(),
-      statusAlt: (r.Status || '').trim(),
-      iipFollowup: (r['IIP FOLLOWUP'] || r['IIP FOLLOWUP '] || '').trim(),
-      team: (r['IIP Team'] || '').trim(),
-    }));
+    .map((r) => {
+      const called = normBool(r.CALLED);
+      const responded = normBool(r.RESPONDED);
+      const otherDetails = (r['OTHER DETAILS'] || '').trim();
+      const followUp = (r['FOLLOW UP UPDATES'] || '').trim();
+      return {
+        campaign: 'Apple Carousel',
+        name: (r.NAME || '').trim(),
+        phone: (r['PHONE NUMBER'] || '').trim(),
+        industry: (r['CURRENT INDUSTRY'] || '').trim().toLowerCase(),
+        interest: (r['WHY INTERESTED'] || '').trim().toLowerCase().replace(/_/g, ' '),
+        called,
+        responded,
+        // Verified = checkbox TRUE + agent actually left notes
+        calledVerified: called && (hasContent(otherDetails) || hasContent(followUp)),
+        respondedVerified: responded && (hasContent(otherDetails) || hasContent(followUp)),
+        status: (r.STATUS || '').trim(),
+        statusAlt: (r.Status || '').trim(),
+        otherDetails,
+        followUp,
+        iipFollowup: (r['IIP FOLLOWUP'] || r['IIP FOLLOWUP '] || '').trim(),
+        team: (r['IIP Team'] || '').trim(),
+        // Raw checkbox value for debugging
+        _rawCalled: r.CALLED,
+        _rawResponded: r.RESPONDED,
+      };
+    });
 }
 
 // ─── Process IIP Leads Hindi Leads (Video campaigns support data) ───────────
@@ -113,6 +140,10 @@ function processHindiLeads(rows) {
     .map((r) => {
       const industry = r[''] || r[' '] || r['  '] || Object.values(r)[4] || '';
       const rawCampaign = (r.campaign_name || '').trim();
+      const called = normBool(r.CALLED);
+      const responded = normBool(r.RESPONDED);
+      const otherDetails = (r['OTHER DETAILS'] || '').trim();
+      const followUp = (r['FOLLOW UP'] || '').trim();
       return {
         campaign: classifyCampaign(rawCampaign, 'new'),
         campaignRaw: rawCampaign,
@@ -125,10 +156,16 @@ function processHindiLeads(rows) {
         adsetName: (r.adset_name || '').trim(),
         industry: String(industry).trim().toLowerCase(),
         interest: (r['WHY INTERESTED'] || '').trim().toLowerCase().replace(/_/g, ' '),
-        called: normBool(r.CALLED),
-        responded: normBool(r.RESPONDED),
+        called,
+        responded,
+        calledVerified: called && (hasContent(otherDetails) || hasContent(followUp)),
+        respondedVerified: responded && (hasContent(otherDetails) || hasContent(followUp)),
         status: (r.STATUS || '').trim(),
+        otherDetails,
+        followUp,
         iipFollowup: (r['IIP FOLLOWUP'] || '').trim(),
+        _rawCalled: r.CALLED,
+        _rawResponded: r.RESPONDED,
       };
     });
 }
@@ -152,11 +189,31 @@ function aggregate(metaNew, metaOld, sheet1, hindiLeads) {
   const campCounts = countByCampaign(allMetaLeads);
 
   const totalMetaLeads = allMetaLeads.length;
+
+  // Strict counts: only TRUE checkboxes
   const totalCallsMade = allSupportLeads.filter((l) => l.called).length;
   const totalResponded = allSupportLeads.filter((l) => l.responded).length;
+
+  // Verified counts: TRUE checkbox + notes in OTHER DETAILS or FOLLOW UP
+  const totalCallsVerified = allSupportLeads.filter((l) => l.calledVerified).length;
+  const totalRespondedVerified = allSupportLeads.filter((l) => l.respondedVerified).length;
+
+  // Leads not yet processed (no checkbox value at all)
+  const notYetProcessed = allSupportLeads.filter(
+    (l) => !l.called && !hasContent(l.otherDetails)
+  ).length;
+
   const totalSupportLeads = allSupportLeads.length;
   const callRate = totalSupportLeads > 0 ? ((totalCallsMade / totalSupportLeads) * 100).toFixed(1) : '0';
   const responseRate = totalCallsMade > 0 ? ((totalResponded / totalCallsMade) * 100).toFixed(1) : '0';
+
+  // Data quality: flag mismatches
+  const calledButNoNotes = allSupportLeads.filter(
+    (l) => l.called && !hasContent(l.otherDetails) && !hasContent(l.followUp)
+  ).length;
+  const notCalledButHasNotes = allSupportLeads.filter(
+    (l) => !l.called && (hasContent(l.otherDetails) || hasContent(l.followUp))
+  ).length;
 
   // Daily Leads (3 campaigns)
   const dailyMap = {};
@@ -210,7 +267,9 @@ function aggregate(metaNew, metaOld, sheet1, hindiLeads) {
     callPerf[c] = {
       total: subset.length,
       called: subset.filter((l) => l.called).length,
+      calledVerified: subset.filter((l) => l.calledVerified).length,
       responded: subset.filter((l) => l.responded).length,
+      respondedVerified: subset.filter((l) => l.respondedVerified).length,
     };
   }
 
@@ -247,9 +306,16 @@ function aggregate(metaNew, metaOld, sheet1, hindiLeads) {
       englishVideoLeads: campCounts['English Video'] || 0,
       appleCarouselLeads: campCounts['Apple Carousel'] || 0,
       totalSupportLeads, totalCallsMade, totalResponded,
+      totalCallsVerified, totalRespondedVerified,
       callRate: parseFloat(callRate), responseRate: parseFloat(responseRate),
       notCalled: totalSupportLeads - totalCallsMade,
       notResponded: totalCallsMade - totalResponded,
+      notYetProcessed,
+    },
+    dataQuality: {
+      calledButNoNotes,
+      notCalledButHasNotes,
+      totalRows: { sheet1: sheet1.length, hindiLeads: hindiLeads.length },
     },
     dailyLeads, weeklyLeads,
     platformDistribution: platformMap, industryDistribution: industryMap,

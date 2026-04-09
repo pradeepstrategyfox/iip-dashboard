@@ -147,6 +147,9 @@ function renderAll(data) {
   // Table
   renderRecentLeads(aggregated.recentLeads);
 
+  // Data Quality
+  renderDataQuality(aggregated.kpis, aggregated.dataQuality);
+
   // Source counts
   document.getElementById('src-new-direct').textContent = `${formatNumber(raw.newDirectCount)} rows`;
   document.getElementById('src-old-direct').textContent = `${formatNumber(raw.oldDirectCount)} rows`;
@@ -160,9 +163,17 @@ function renderKPIs(kpis) {
   animateValue('kpi-hindi-leads', kpis.hindiVideoLeads);
   animateValue('kpi-english-leads', kpis.englishVideoLeads);
   animateValue('kpi-carousel-leads', kpis.appleCarouselLeads);
-  animateValue('kpi-calls-made', kpis.totalCallsMade);
-  animateValue('kpi-responded', kpis.totalResponded);
-  document.getElementById('kpi-response-rate').textContent = `${kpis.responseRate}%`;
+  // Show verified count as main, checkbox count as subtitle
+  animateValue('kpi-calls-made', kpis.totalCallsVerified);
+  document.getElementById('kpi-calls-checkbox').textContent =
+    `${formatNumber(kpis.totalCallsMade)} checkbox ticked`;
+  animateValue('kpi-responded', kpis.totalRespondedVerified);
+  document.getElementById('kpi-responded-checkbox').textContent =
+    `${formatNumber(kpis.totalResponded)} checkbox ticked`;
+  const verifiedRate = kpis.totalCallsVerified > 0
+    ? ((kpis.totalRespondedVerified / kpis.totalCallsVerified) * 100).toFixed(1)
+    : '0';
+  document.getElementById('kpi-response-rate').textContent = `${verifiedRate}%`;
 }
 
 function animateValue(elementId, target) {
@@ -188,8 +199,8 @@ function renderFunnel(kpis) {
   const steps = [
     { label: 'Total Leads', value: kpis.totalMetaLeads, color: COLORS.primary },
     { label: 'Transferred to Support', value: kpis.totalSupportLeads, color: COLORS.newCampaign },
-    { label: 'Calls Made', value: kpis.totalCallsMade, color: COLORS.warning },
-    { label: 'Responded', value: kpis.totalResponded, color: COLORS.success },
+    { label: 'Calls Made (Verified)', value: kpis.totalCallsVerified, color: COLORS.warning },
+    { label: 'Responded (Verified)', value: kpis.totalRespondedVerified, color: COLORS.success },
   ];
 
   let html = '';
@@ -379,15 +390,15 @@ function renderCallPerformance(callPerf) {
           borderWidth: 1,
         },
         {
-          label: 'Calls Made',
-          data: campKeys.map((k) => (callPerf[k] || {}).called || 0),
+          label: 'Calls (Verified)',
+          data: campKeys.map((k) => (callPerf[k] || {}).calledVerified || 0),
           backgroundColor: 'rgba(217,119,6,0.7)',
           borderColor: COLORS.warning,
           borderWidth: 1,
         },
         {
-          label: 'Responded',
-          data: campKeys.map((k) => (callPerf[k] || {}).responded || 0),
+          label: 'Responded (Verified)',
+          data: campKeys.map((k) => (callPerf[k] || {}).respondedVerified || 0),
           backgroundColor: 'rgba(5,150,105,0.7)',
           borderColor: COLORS.success,
           borderWidth: 1,
@@ -717,6 +728,23 @@ function renderRecentLeads(leads) {
       </tr>`;
     })
     .join('');
+}
+
+// ─── Data Quality ───────────────────────────────────────────────────────────
+function renderDataQuality(kpis, dq) {
+  if (!dq) return;
+  document.getElementById('dq-total-support').textContent = formatNumber(kpis.totalSupportLeads);
+  document.getElementById('dq-calls-checkbox').textContent = formatNumber(kpis.totalCallsMade);
+  document.getElementById('dq-calls-verified').textContent = formatNumber(kpis.totalCallsVerified);
+  document.getElementById('dq-called-no-notes').textContent = formatNumber(dq.calledButNoNotes);
+  document.getElementById('dq-notes-no-call').textContent = formatNumber(dq.notCalledButHasNotes);
+  document.getElementById('dq-not-processed').textContent = formatNumber(kpis.notYetProcessed);
+
+  // Highlight warnings
+  const noNotesEl = document.getElementById('dq-no-notes-wrapper');
+  const noCallEl = document.getElementById('dq-notes-no-call-wrapper');
+  noNotesEl.className = `dq-item ${dq.calledButNoNotes > 0 ? 'dq-warn' : 'dq-good'}`;
+  noCallEl.className = `dq-item ${dq.notCalledButHasNotes > 0 ? 'dq-warn' : 'dq-good'}`;
 }
 
 // ─── Auto Refresh ───────────────────────────────────────────────────────────

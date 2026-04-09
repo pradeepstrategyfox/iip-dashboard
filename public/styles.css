@@ -153,6 +153,7 @@ body {
 .kpi-content { display: flex; flex-direction: column; }
 .kpi-value { font-size: 1.7rem; font-weight: 800; line-height: 1.2; }
 .kpi-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; margin-top: 4px; }
+.kpi-sub { font-size: 0.65rem; color: var(--text-muted); margin-top: 2px; }
 
 /* ─── Funnel ──────────────────────────────────────────────────────────────── */
 .funnel-container {
@@ -264,6 +265,18 @@ tr:hover td { background: var(--primary-light); }
   box-shadow: var(--shadow); padding: 20px;
 }
 .sources-card h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 16px; }
+
+/* ─── Data Quality ────────────────────────────────────────────────────────── */
+.dq-note { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5; }
+.dq-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.dq-item {
+  background: var(--bg); border-radius: var(--radius-sm); padding: 12px 16px;
+  text-align: center; border: 1px solid var(--border);
+}
+.dq-item.dq-good { border-color: var(--success); background: var(--success-light); }
+.dq-item.dq-warn { border-color: var(--warning); background: var(--warning-light); }
+.dq-value { font-size: 1.3rem; font-weight: 800; display: block; }
+.dq-label { font-size: 0.7rem; color: var(--text-secondary); font-weight: 500; }
 .sources-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .source-item { display: flex; align-items: flex-start; gap: 10px; }
 .source-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
