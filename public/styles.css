@@ -301,19 +301,80 @@ tr:hover td { background: var(--primary-light); }
 @media (max-width: 1200px) {
   .kpi-grid { grid-template-columns: repeat(4, 1fr); }
 }
+
 @media (max-width: 900px) {
-  .header { flex-direction: column; gap: 12px; padding: 12px 16px; }
+  .header { flex-direction: column; gap: 8px; padding: 12px 16px; }
   .header-right { width: 100%; justify-content: space-between; }
-  .main { padding: 16px; }
+  .main { padding: 12px; }
   .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .charts-row { grid-template-columns: 1fr; }
   .sources-grid { grid-template-columns: 1fr; }
-  .funnel-container { flex-direction: column; gap: 8px; }
-  .funnel-arrow { transform: rotate(90deg); width: auto; height: 30px; }
+  .funnel-container {
+    flex-direction: column; gap: 0; padding: 16px;
+    align-items: center;
+  }
+  .funnel-step { max-width: 100%; width: 100%; }
+  .funnel-bar { border-radius: 8px; padding: 14px 8px; font-size: 1.3rem; }
+  .funnel-arrow {
+    transform: rotate(90deg); width: auto; height: 28px;
+    margin-top: 0;
+  }
+  .funnel-label { font-size: 0.75rem; }
+  .funnel-rate { margin-bottom: 4px; }
 }
+
 @media (max-width: 480px) {
-  .kpi-grid { grid-template-columns: 1fr; }
   html { font-size: 14px; }
+
+  /* Header: compact layout */
+  .header { padding: 10px 12px; gap: 6px; }
+  .header-left { gap: 10px; }
+  .logo { width: 38px; height: 38px; font-size: 1rem; border-radius: 10px; }
+  .header h1 { font-size: 1.05rem; }
+  .subtitle { font-size: 0.68rem; }
+  .sf-credit { font-size: 0.62rem; }
+  .header-right { flex-wrap: wrap; gap: 6px; }
+  .meta-info { flex-direction: row; align-items: center; gap: 8px; }
+  .btn-refresh { padding: 6px 12px; font-size: 0.78rem; }
+
+  /* KPI: 2-column compact grid */
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px; margin-bottom: 16px;
+  }
+  .kpi-card { padding: 12px 10px; gap: 8px; border-left-width: 3px; }
+  .kpi-icon { width: 32px; height: 32px; border-radius: 8px; }
+  .kpi-icon svg { width: 18px; height: 18px; }
+  .kpi-value { font-size: 1.35rem; }
+  .kpi-label { font-size: 0.65rem; margin-top: 2px; }
+  .kpi-sub { font-size: 0.58rem; }
+  /* Make the last KPI (Response Rate) span full width if odd count */
+  .kpi-grid > .kpi-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  /* Funnel: full-width stacked */
+  .section-title { font-size: 0.9rem; margin-bottom: 8px; }
+  .funnel-container { padding: 12px; gap: 0; }
+  .funnel-step { width: 100%; }
+  .funnel-bar { padding: 12px 8px; font-size: 1.2rem; border-radius: 6px; }
+  .funnel-label { font-size: 0.7rem; margin-top: 4px; }
+  .funnel-rate { font-size: 0.62rem; margin-bottom: 2px; }
+  .funnel-arrow { height: 22px; }
+  .funnel-arrow svg { width: 18px; height: 18px; }
+
+  /* Charts: tighter padding */
+  .section { margin-bottom: 12px; }
+  .charts-row { gap: 12px; margin-bottom: 12px; }
+  .chart-header { padding: 10px 12px 8px; }
+  .chart-header h3 { font-size: 0.8rem; }
+  .chart-body { padding: 8px 10px 12px; height: 250px; }
+  .chart-body-doughnut { height: 260px; }
+
+  /* Footer */
+  .footer { padding: 16px 12px; font-size: 0.68rem; }
+
+  .main { padding: 10px; }
 }
 
 /* ─── Chart.js overrides ──────────────────────────────────────────────────── */
