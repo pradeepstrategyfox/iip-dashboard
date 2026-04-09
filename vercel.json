@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/data.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    { "src": "/api/data", "dest": "/api/data.js" },
+    { "src": "/api/refresh", "dest": "/api/data.js?refresh=true" },
+    { "src": "/(.*)", "dest": "/public/$1" }
+  ]
+}

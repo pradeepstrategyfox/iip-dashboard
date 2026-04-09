@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IIP Performance Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="loading-content">
+      <div class="spinner"></div>
+      <p>Loading Dashboard Data...</p>
+    </div>
+  </div>
+
+  <!-- Error Banner -->
+  <div id="error-banner" class="error-banner hidden">
+    <span id="error-text"></span>
+    <button onclick="this.parentElement.classList.add('hidden')">Dismiss</button>
+  </div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">IIP</div>
+      <div>
+        <h1>Performance Dashboard</h1>
+        <p class="subtitle">Indian Institute of Packaging &mdash; CPE Lead Analytics</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="meta-info">
+        <span class="refresh-indicator" id="refresh-indicator" title="Auto-refreshes every hour">
+          <span class="pulse-dot"></span> Live
+        </span>
+        <span class="last-updated" id="last-updated">Loading...</span>
+      </div>
+      <button class="btn-refresh" id="btn-refresh" onclick="refreshData()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        Refresh
+      </button>
+    </div>
+  </header>
+
+  <main class="main">
+    <!-- KPI Cards -->
+    <section class="kpi-grid" id="kpi-section">
+      <div class="kpi-card kpi-primary">
+        <div class="kpi-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-value" id="kpi-total-leads">—</span>
+          <span class="kpi-label">Total Leads (Meta)</span>
+        </div>
+      </div>
+      <div class="kpi-card kpi-new">
+        <div class="kpi-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-value" id="kpi-new-leads">—</span>
+          <span class="kpi-label">New Campaign (Hindi)</span>
+        </div>
+      </div>
+      <div class="kpi-card kpi-old">
+        <div class="kpi-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-value" id="kpi-old-leads">—</span>
+          <span class="kpi-label">Old Campaign (English)</span>
+        </div>
+      </div>
+      <div class="kpi-card kpi-calls">
+        <div class="kpi-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-value" id="kpi-calls-made">—</span>
+          <span class="kpi-label">Calls Made</span>
+        </div>
+      </div>
+      <div class="kpi-card kpi-responded">
+        <div class="kpi-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-value" id="kpi-responded">—</span>
+          <span class="kpi-label">Responded</span>
+        </div>
+      </div>
+      <div class="kpi-card kpi-rate">
+        <div class="kpi-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-value" id="kpi-response-rate">—</span>
+          <span class="kpi-label">Response Rate</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Funnel Section -->
+    <section class="section">
+      <h2 class="section-title">Lead Conversion Funnel</h2>
+      <div class="funnel-container" id="funnel-container"></div>
+    </section>
+
+    <!-- Charts Row 1: Daily Trend + Campaign Comparison -->
+    <section class="charts-row">
+      <div class="chart-card chart-wide">
+        <div class="chart-header">
+          <h3>Daily Lead Inflow</h3>
+          <div class="chart-toggle">
+            <button class="toggle-btn active" data-view="daily" onclick="toggleDailyView('daily')">Daily</button>
+            <button class="toggle-btn" data-view="weekly" onclick="toggleDailyView('weekly')">Weekly</button>
+          </div>
+        </div>
+        <div class="chart-body">
+          <canvas id="chart-daily-leads"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3>Campaign Split</h3>
+        </div>
+        <div class="chart-body chart-body-doughnut">
+          <canvas id="chart-campaign-split"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Charts Row 2: Call Performance + Status -->
+    <section class="charts-row">
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3>Call Performance</h3>
+        </div>
+        <div class="chart-body">
+          <canvas id="chart-call-perf"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3>Lead Status Distribution</h3>
+        </div>
+        <div class="chart-body chart-body-doughnut">
+          <canvas id="chart-status"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Charts Row 3: Platform + Industry -->
+    <section class="charts-row">
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3>Platform Distribution</h3>
+        </div>
+        <div class="chart-body chart-body-doughnut">
+          <canvas id="chart-platform"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3>Industry Breakdown</h3>
+        </div>
+        <div class="chart-body">
+          <canvas id="chart-industry"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Charts Row 4: Interest + Team -->
+    <section class="charts-row">
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3>Interest Reason</h3>
+        </div>
+        <div class="chart-body">
+          <canvas id="chart-interest"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3>Team Performance</h3>
+        </div>
+        <div class="chart-body">
+          <canvas id="chart-team"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Status by Campaign -->
+    <section class="section">
+      <div class="chart-card chart-full">
+        <div class="chart-header">
+          <h3>Status Breakdown by Campaign</h3>
+        </div>
+        <div class="chart-body">
+          <canvas id="chart-status-campaign"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Recent Leads Table -->
+    <section class="section">
+      <div class="table-card">
+        <div class="chart-header">
+          <h3>Recent Leads</h3>
+          <span class="badge" id="table-count">0 leads</span>
+        </div>
+        <div class="table-wrapper">
+          <table id="leads-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Name</th>
+                <th>Campaign</th>
+                <th>Platform</th>
+                <th>Industry</th>
+                <th>Interest</th>
+              </tr>
+            </thead>
+            <tbody id="leads-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Data Sources -->
+    <section class="section">
+      <div class="sources-card">
+        <h3>Data Sources</h3>
+        <div class="sources-grid">
+          <div class="source-item">
+            <span class="source-dot source-dot-green"></span>
+            <div>
+              <strong>IIP - New Leads - Direct</strong>
+              <span class="source-desc">Meta Ads &rarr; New Campaign (Hindi)</span>
+              <span class="source-count" id="src-new-direct">— rows</span>
+            </div>
+          </div>
+          <div class="source-item">
+            <span class="source-dot source-dot-blue"></span>
+            <div>
+              <strong>IIP - Old Leads - Direct</strong>
+              <span class="source-desc">Meta Ads &rarr; Old Campaign (English)</span>
+              <span class="source-count" id="src-old-direct">— rows</span>
+            </div>
+          </div>
+          <div class="source-item">
+            <span class="source-dot source-dot-purple"></span>
+            <div>
+              <strong>IIP Leads &mdash; Sheet1</strong>
+              <span class="source-desc">Support Team &rarr; Old Campaign Tracking</span>
+              <span class="source-count" id="src-sheet1">— rows</span>
+            </div>
+          </div>
+          <div class="source-item">
+            <span class="source-dot source-dot-orange"></span>
+            <div>
+              <strong>IIP Leads &mdash; Hindi Leads</strong>
+              <span class="source-desc">Support Team &rarr; New Campaign Tracking</span>
+              <span class="source-count" id="src-hindi">— rows</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>IIP Performance Dashboard &bull; Data refreshes automatically every hour &bull; Powered by Google Sheets</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

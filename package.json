@@ -1,0 +1,14 @@
+{
+  "name": "iip-dashboard",
+  "version": "1.0.0",
+  "description": "IIP Leads Performance Dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "papaparse": "^5.4.1"
+  }
+}
