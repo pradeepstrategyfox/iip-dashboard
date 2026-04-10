@@ -121,7 +121,7 @@ body {
 /* ─── KPI Grid ────────────────────────────────────────────────────────────── */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(8, 1fr);
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -139,6 +139,7 @@ body {
 .kpi-carousel { border-left-color: #F97316; }
 .kpi-calls { border-left-color: var(--warning); }
 .kpi-responded { border-left-color: var(--success); }
+.kpi-callrate { border-left-color: #8B5CF6; }
 .kpi-rate { border-left-color: #EC4899; }
 .kpi-icon {
   flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px;
@@ -150,6 +151,7 @@ body {
 .kpi-carousel .kpi-icon { background: #FFF7ED; color: #F97316; }
 .kpi-calls .kpi-icon { background: var(--warning-light); color: var(--warning); }
 .kpi-responded .kpi-icon { background: var(--success-light); color: var(--success); }
+.kpi-callrate .kpi-icon { background: #F5F3FF; color: #8B5CF6; }
 .kpi-rate .kpi-icon { background: #FDF2F8; color: #EC4899; }
 .kpi-content { display: flex; flex-direction: column; }
 .kpi-value { font-size: 1.7rem; font-weight: 800; line-height: 1.2; }

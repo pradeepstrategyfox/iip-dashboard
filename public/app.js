@@ -164,6 +164,10 @@ function renderKPIs(kpis) {
   animateValue('kpi-responded', kpis.totalResponded);
   document.getElementById('kpi-responded-checkbox').textContent =
     `${formatNumber(kpis.totalRespondedVerified)} verified with notes`;
+  const callRate = kpis.totalSupportLeads > 0
+    ? ((kpis.totalCallsMade / kpis.totalSupportLeads) * 100).toFixed(1)
+    : '0';
+  document.getElementById('kpi-call-rate').textContent = `${callRate}%`;
   document.getElementById('kpi-response-rate').textContent = `${kpis.responseRate}%`;
 }
 
