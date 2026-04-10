@@ -187,11 +187,16 @@ function animateValue(elementId, target) {
 // ─── Funnel ─────────────────────────────────────────────────────────────────
 function renderFunnel(kpis) {
   const container = document.getElementById('funnel-container');
+  const isSF = window.location.pathname.includes('/sf');
   const steps = [
-    { label: 'Total Leads', value: kpis.totalMetaLeads, color: COLORS.primary },
-    { label: 'Transferred to Support', value: kpis.totalSupportLeads, color: '#0EA5E9' },
-    { label: 'Calls Made', value: kpis.totalCallsMade, color: COLORS.warning },
-    { label: 'Responded', value: kpis.totalResponded, color: COLORS.success },
+    { label: 'Total Leads', value: kpis.totalMetaLeads, color: COLORS.primary,
+      src: 'IIP - New Leads - Direct + IIP - Old Leads - Direct' },
+    { label: 'Transferred to Support', value: kpis.totalSupportLeads, color: '#0EA5E9',
+      src: 'IIP Leads > Sheet1 + IIP Leads > Hindi Leads (row count)' },
+    { label: 'Calls Made', value: kpis.totalCallsMade, color: COLORS.warning,
+      src: 'IIP Leads > Sheet1 Col E + Hindi Leads Col J (CALLED=TRUE)' },
+    { label: 'Responded', value: kpis.totalResponded, color: COLORS.success,
+      src: 'IIP Leads > Sheet1 Col F + Hindi Leads Col K (RESPONDED=TRUE)' },
   ];
 
   let html = '';
@@ -214,6 +219,7 @@ function renderFunnel(kpis) {
       </div>
       <div class="funnel-label">${step.label}</div>
       ${rate ? `<div class="funnel-rate">${rate} conversion</div>` : '<div class="funnel-rate">&nbsp;</div>'}
+      ${isSF ? `<div class="funnel-src"><strong>Source:</strong> ${step.src}</div>` : ''}
     </div>`;
   });
 
