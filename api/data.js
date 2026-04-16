@@ -102,6 +102,26 @@ function hasContent(val) {
   return val && String(val).trim().length > 0;
 }
 
+// ─── Status normalization ───────────────────────────────────────────────────
+// Merge typos and inconsistent variants into canonical status names.
+const STATUS_MAP = {
+  'not answerd': 'Not Answered',
+  'not answered': 'Not Answered',
+  'call not answered': 'Not Answered',
+  'other programme': 'Other Programmes',
+  'other programs': 'Other Programmes',
+  'interested, will apply': 'Interested',
+  'interested, applied': 'Registered',
+};
+
+function normStatus(val) {
+  if (!val) return 'Not Updated';
+  const s = val.trim();
+  if (!s) return 'Not Updated';
+  const key = s.toLowerCase();
+  return STATUS_MAP[key] || s;
+}
+
 // ─── Process IIP Leads Sheet1 (Apple Carousel support data) ─────────────────
 function processSheet1(rows) {
   return rows
@@ -122,8 +142,8 @@ function processSheet1(rows) {
         // Verified = checkbox TRUE + agent actually left notes
         calledVerified: called && (hasContent(otherDetails) || hasContent(followUp)),
         respondedVerified: responded && (hasContent(otherDetails) || hasContent(followUp)),
-        status: (r.STATUS || '').trim(),
-        statusAlt: (r.Status || '').trim(),
+        status: normStatus(r.STATUS),
+        statusAlt: normStatus(r.Status),
         otherDetails,
         followUp,
         iipFollowup: (r['IIP FOLLOWUP'] || r['IIP FOLLOWUP '] || '').trim(),
@@ -163,7 +183,7 @@ function processHindiLeads(rows) {
         responded,
         calledVerified: called && (hasContent(otherDetails) || hasContent(followUp)),
         respondedVerified: responded && (hasContent(otherDetails) || hasContent(followUp)),
-        status: (r.STATUS || '').trim(),
+        status: normStatus(r.STATUS),
         otherDetails,
         followUp,
         iipFollowup: (r['IIP FOLLOWUP'] || '').trim(),
