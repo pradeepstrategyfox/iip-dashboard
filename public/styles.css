@@ -137,6 +137,8 @@ body {
 .kpi-hindi { border-left-color: var(--new-campaign); }
 .kpi-english { border-left-color: var(--old-campaign); }
 .kpi-carousel { border-left-color: #F97316; }
+.kpi-interview { border-left-color: #10B981; }
+.kpi-linkedin { border-left-color: #0A66C2; }
 .kpi-calls { border-left-color: var(--warning); }
 .kpi-responded { border-left-color: var(--success); }
 .kpi-callrate { border-left-color: #8B5CF6; }
@@ -149,6 +151,8 @@ body {
 .kpi-hindi .kpi-icon { background: var(--new-light); color: var(--new-campaign); }
 .kpi-english .kpi-icon { background: var(--old-light); color: var(--old-campaign); }
 .kpi-carousel .kpi-icon { background: #FFF7ED; color: #F97316; }
+.kpi-interview .kpi-icon { background: #ECFDF5; color: #10B981; }
+.kpi-linkedin .kpi-icon { background: #EFF6FF; color: #0A66C2; }
 .kpi-calls .kpi-icon { background: var(--warning-light); color: var(--warning); }
 .kpi-responded .kpi-icon { background: var(--success-light); color: var(--success); }
 .kpi-callrate .kpi-icon { background: #F5F3FF; color: #8B5CF6; }
@@ -262,6 +266,8 @@ tr:hover td { background: var(--primary-light); }
 .campaign-hindi { background: var(--new-light); color: var(--new-campaign); }
 .campaign-english { background: var(--old-light); color: var(--old-campaign); }
 .campaign-carousel { background: #FFF7ED; color: #F97316; }
+.campaign-interview { background: #ECFDF5; color: #10B981; }
+.campaign-linkedin { background: #EFF6FF; color: #0A66C2; }
 
 /* ─── Sources ─────────────────────────────────────────────────────────────── */
 .sources-card {

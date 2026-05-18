@@ -15,6 +15,8 @@ const COLORS = {
   hindiVideo: '#7C3AED',
   englishVideo: '#0891B2',
   appleCarousel: '#F97316',
+  interviewVideo: '#10B981',
+  linkedIn: '#0A66C2',
   success: '#059669',
   warning: '#D97706',
   danger: '#DC2626',
@@ -157,6 +159,8 @@ function renderKPIs(kpis) {
   animateValue('kpi-hindi-leads', kpis.hindiVideoLeads);
   animateValue('kpi-english-leads', kpis.englishVideoLeads);
   animateValue('kpi-carousel-leads', kpis.appleCarouselLeads);
+  animateValue('kpi-interview-leads', kpis.interviewVideoLeads || 0);
+  animateValue('kpi-linkedin-leads', kpis.linkedInLeads || 0);
   // Checkbox count as primary, verified as subtitle
   animateValue('kpi-calls-made', kpis.totalCallsMade);
   document.getElementById('kpi-calls-checkbox').textContent =
@@ -285,6 +289,24 @@ function renderDailyLeadsChart(aggregated) {
           borderRadius: 4,
           stack: 'stack',
         },
+        {
+          label: 'Interview Video Ad',
+          data: source.map((d) => d.interviewVideo || 0),
+          backgroundColor: 'rgba(16,185,129,0.8)',
+          borderColor: COLORS.interviewVideo,
+          borderWidth: 1,
+          borderRadius: 4,
+          stack: 'stack',
+        },
+        {
+          label: 'LinkedIn Ad',
+          data: source.map((d) => d.linkedIn || 0),
+          backgroundColor: 'rgba(10,102,194,0.8)',
+          borderColor: COLORS.linkedIn,
+          borderWidth: 1,
+          borderRadius: 4,
+          stack: 'stack',
+        },
       ],
     },
     options: {
@@ -325,10 +347,16 @@ function renderCampaignSplit(kpis) {
   chartInstances['campaignSplit'] = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: ['Hindi Video Ad', 'English Video Ad', 'Apple Carousel Ad'],
+      labels: ['Hindi Video Ad', 'English Video Ad', 'Apple Carousel Ad', 'Interview Video Ad', 'LinkedIn Ad'],
       datasets: [{
-        data: [kpis.hindiVideoLeads, kpis.englishVideoLeads, kpis.appleCarouselLeads],
-        backgroundColor: [COLORS.hindiVideo, COLORS.englishVideo, COLORS.appleCarousel],
+        data: [
+          kpis.hindiVideoLeads,
+          kpis.englishVideoLeads,
+          kpis.appleCarouselLeads,
+          kpis.interviewVideoLeads || 0,
+          kpis.linkedInLeads || 0,
+        ],
+        backgroundColor: [COLORS.hindiVideo, COLORS.englishVideo, COLORS.appleCarousel, COLORS.interviewVideo, COLORS.linkedIn],
         borderWidth: 0,
         hoverOffset: 8,
       }],
@@ -375,8 +403,8 @@ function renderCallPerformance(callPerf) {
   destroyChart('callPerf');
   const ctx = document.getElementById('chart-call-perf').getContext('2d');
 
-  const campKeys = ['Hindi Video', 'English Video', 'Apple Carousel'];
-  const campLabels = ['Hindi Video Ad', 'English Video Ad', 'Apple Carousel Ad'];
+  const campKeys = ['Hindi Video', 'English Video', 'Apple Carousel', 'Interview Video', 'LinkedIn'];
+  const campLabels = ['Hindi Video Ad', 'English Video Ad', 'Apple Carousel Ad', 'Interview Video Ad', 'LinkedIn Ad'];
 
   chartInstances['callPerf'] = new Chart(ctx, {
     type: 'bar',
@@ -714,6 +742,8 @@ function renderRecentLeads(leads) {
         'Hindi Video': { cls: 'campaign-hindi', lbl: 'Hindi Video' },
         'English Video': { cls: 'campaign-english', lbl: 'English Video' },
         'Apple Carousel': { cls: 'campaign-carousel', lbl: 'Apple Carousel' },
+        'Interview Video': { cls: 'campaign-interview', lbl: 'Interview Video' },
+        'LinkedIn': { cls: 'campaign-linkedin', lbl: 'LinkedIn' },
       };
       const cm = campMap[lead.campaign] || { cls: 'campaign-hindi', lbl: lead.campaign };
       const campaignClass = cm.cls;

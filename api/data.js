@@ -32,8 +32,10 @@ async function fetchSheet(spreadsheetId, sheetName) {
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     const obj = {};
-    for (let j = 0; j < headers.length; j++) {
-      obj[headers[j]] = row[j] !== undefined ? row[j] : '';
+    const cols = Math.max(headers.length, row.length);
+    for (let j = 0; j < cols; j++) {
+      const key = headers[j] || `_col${j}`;
+      obj[key] = row[j] !== undefined ? row[j] : '';
     }
     data.push(obj);
   }
@@ -65,6 +67,8 @@ function normDate(val) {
 function classifyCampaign(campaignName, source) {
   const cn = (campaignName || '').toLowerCase();
   if (source === 'old') return 'Apple Carousel';
+  if (source === 'interview') return 'Interview Video';
+  if (source === 'linkedin') return 'LinkedIn';
   if (cn.includes('hindi')) return 'Hindi Video';
   if (cn.includes('video') || cn.includes('cpe')) return 'English Video';
   return 'English Video'; // default for new leads
@@ -193,8 +197,91 @@ function processHindiLeads(rows) {
     });
 }
 
+// ─── Process Interview sheet ────────────────────────────────────────────────
+// Each row is BOTH a Meta lead source AND a support tracking entry.
+// Headers stop at column T (STATUS); column U is unlabeled OTHER DETAILS notes.
+function processInterview(rows) {
+  return rows
+    .filter((r) => r.full_name || r.phone_number || r.NAME || r['Email ID'])
+    .map((r) => {
+      const rawCampaign = (r.campaign_name || '').trim();
+      const called = normBool(r.CALLED);
+      const responded = normBool(r.RESPONDED);
+      // Column U (index 20) has no header — it holds the call notes.
+      const otherDetails = (r['OTHER DETAILS'] || r._col20 || '').trim();
+      const name = (r.full_name || '').trim();
+      const phone = (r.phone_number || '').trim();
+      return {
+        // Meta-lead fields
+        campaign: 'Interview Video',
+        campaignRaw: rawCampaign,
+        date: normDate(r.created_time),
+        datetime: r.created_time || null,
+        name,
+        phone,
+        email: (r['Email ID'] || r.email || '').trim(),
+        platform: (r.platform || '').trim().toLowerCase(),
+        industry: (r['which_industry_to_you_currently_work_in?'] || '').trim().toLowerCase(),
+        interest: (r['why_are_you_interested_in_this_program?'] || '').trim().toLowerCase().replace(/_/g, ' '),
+        campaignName: rawCampaign,
+        adsetName: (r.adset_name || '').trim(),
+        formName: (r.form_name || '').trim(),
+        // Support-tracking fields
+        called,
+        responded,
+        calledVerified: called && hasContent(otherDetails),
+        respondedVerified: responded && hasContent(otherDetails),
+        status: normStatus(r.STATUS),
+        otherDetails,
+        followUp: '',
+        _rawCalled: r.CALLED,
+        _rawResponded: r.RESPONDED,
+      };
+    });
+}
+
+// ─── Process LinkedIn sheet ─────────────────────────────────────────────────
+// LinkedIn-originated leads — combined meta source + support tracking.
+// No platform/industry/interest columns; we fix platform='linkedin'.
+function processLinkedIn(rows) {
+  return rows
+    .filter((r) => r['First name'] || r['Last name'] || r['Phone number'] || r['Email address'])
+    .map((r) => {
+      const called = normBool(r.CALLED);
+      const responded = normBool(r.RESPONDED);
+      const otherDetails = (r['OTHER DETAILS'] || '').trim();
+      const fullName = `${(r['First name'] || '').trim()} ${(r['Last name'] || '').trim()}`.trim();
+      const formName = (r.form_name || '').trim();
+      return {
+        campaign: 'LinkedIn',
+        campaignRaw: formName,
+        date: normDate(r.created_time),
+        datetime: r.created_time || null,
+        name: fullName,
+        phone: (r['Phone number'] || '').trim(),
+        email: (r['Email address'] || '').trim(),
+        platform: 'linkedin',
+        industry: (r['Which engineering stream is your qualification in?'] || '').trim().toLowerCase(),
+        interest: '',
+        campaignName: formName,
+        adsetName: '',
+        formName,
+        city: (r.City || '').trim(),
+        called,
+        responded,
+        calledVerified: called && hasContent(otherDetails),
+        respondedVerified: responded && hasContent(otherDetails),
+        status: normStatus(r.STATUS),
+        otherDetails,
+        followUp: '',
+        _rawCalled: r.CALLED,
+        _rawResponded: r.RESPONDED,
+      };
+    });
+}
+
 // ─── Campaign keys ──────────────────────────────────────────────────────────
-const CAMPAIGNS = ['Hindi Video', 'English Video', 'Apple Carousel'];
+const CAMPAIGNS = ['Hindi Video', 'English Video', 'Apple Carousel', 'Interview Video', 'LinkedIn'];
 
 function countByCampaign(leads) {
   const out = {};
@@ -204,9 +291,11 @@ function countByCampaign(leads) {
 }
 
 // ─── Aggregate ──────────────────────────────────────────────────────────────
-function aggregate(metaNew, metaOld, sheet1, hindiLeads) {
-  const allMetaLeads = [...metaNew, ...metaOld];
-  const allSupportLeads = [...sheet1, ...hindiLeads];
+function aggregate(metaNew, metaOld, sheet1, hindiLeads, interview, linkedin) {
+  // Interview & LinkedIn rows are simultaneously meta-lead source rows
+  // AND support-tracking rows — they appear in BOTH collections.
+  const allMetaLeads = [...metaNew, ...metaOld, ...interview, ...linkedin];
+  const allSupportLeads = [...sheet1, ...hindiLeads, ...interview, ...linkedin];
 
   // Per-campaign counts from Meta
   const campCounts = countByCampaign(allMetaLeads);
@@ -238,20 +327,28 @@ function aggregate(metaNew, metaOld, sheet1, hindiLeads) {
     (l) => !l.called && (hasContent(l.otherDetails) || hasContent(l.followUp))
   ).length;
 
-  // Daily Leads (3 campaigns)
+  const emptyBucket = () => ({ hindiVideo: 0, englishVideo: 0, appleCarousel: 0, interviewVideo: 0, linkedIn: 0 });
+  const bumpBucket = (b, campaign) => {
+    if (campaign === 'Hindi Video') b.hindiVideo++;
+    else if (campaign === 'English Video') b.englishVideo++;
+    else if (campaign === 'Interview Video') b.interviewVideo++;
+    else if (campaign === 'LinkedIn') b.linkedIn++;
+    else b.appleCarousel++;
+  };
+  const bucketTotal = (b) => b.hindiVideo + b.englishVideo + b.appleCarousel + b.interviewVideo + b.linkedIn;
+
+  // Daily Leads (5 campaigns)
   const dailyMap = {};
   for (const lead of allMetaLeads) {
     if (!lead.date) continue;
-    if (!dailyMap[lead.date]) dailyMap[lead.date] = { hindiVideo: 0, englishVideo: 0, appleCarousel: 0 };
-    if (lead.campaign === 'Hindi Video') dailyMap[lead.date].hindiVideo++;
-    else if (lead.campaign === 'English Video') dailyMap[lead.date].englishVideo++;
-    else dailyMap[lead.date].appleCarousel++;
+    if (!dailyMap[lead.date]) dailyMap[lead.date] = emptyBucket();
+    bumpBucket(dailyMap[lead.date], lead.campaign);
   }
   const dailyLeads = Object.entries(dailyMap)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, c]) => ({ date, ...c, total: c.hindiVideo + c.englishVideo + c.appleCarousel }));
+    .map(([date, c]) => ({ date, ...c, total: bucketTotal(c) }));
 
-  // Weekly Leads (3 campaigns)
+  // Weekly Leads (5 campaigns)
   const weeklyMap = {};
   for (const lead of allMetaLeads) {
     if (!lead.date) continue;
@@ -259,14 +356,12 @@ function aggregate(metaNew, metaOld, sheet1, hindiLeads) {
     const weekStart = new Date(d);
     weekStart.setDate(d.getDate() - d.getDay());
     const weekKey = weekStart.toISOString().slice(0, 10);
-    if (!weeklyMap[weekKey]) weeklyMap[weekKey] = { hindiVideo: 0, englishVideo: 0, appleCarousel: 0 };
-    if (lead.campaign === 'Hindi Video') weeklyMap[weekKey].hindiVideo++;
-    else if (lead.campaign === 'English Video') weeklyMap[weekKey].englishVideo++;
-    else weeklyMap[weekKey].appleCarousel++;
+    if (!weeklyMap[weekKey]) weeklyMap[weekKey] = emptyBucket();
+    bumpBucket(weeklyMap[weekKey], lead.campaign);
   }
   const weeklyLeads = Object.entries(weeklyMap)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([week, c]) => ({ week, ...c, total: c.hindiVideo + c.englishVideo + c.appleCarousel }));
+    .map(([week, c]) => ({ week, ...c, total: bucketTotal(c) }));
 
   // Distributions
   const platformMap = {}, industryMap = {}, interestMap = {}, statusMap = {};
@@ -328,6 +423,8 @@ function aggregate(metaNew, metaOld, sheet1, hindiLeads) {
       hindiVideoLeads: campCounts['Hindi Video'] || 0,
       englishVideoLeads: campCounts['English Video'] || 0,
       appleCarouselLeads: campCounts['Apple Carousel'] || 0,
+      interviewVideoLeads: campCounts['Interview Video'] || 0,
+      linkedInLeads: campCounts['LinkedIn'] || 0,
       totalSupportLeads, totalCallsMade, totalResponded,
       totalCallsVerified, totalRespondedVerified,
       callRate: parseFloat(callRate), responseRate: parseFloat(responseRate),
@@ -338,7 +435,12 @@ function aggregate(metaNew, metaOld, sheet1, hindiLeads) {
     dataQuality: {
       calledButNoNotes,
       notCalledButHasNotes,
-      totalRows: { sheet1: sheet1.length, hindiLeads: hindiLeads.length },
+      totalRows: {
+        sheet1: sheet1.length,
+        hindiLeads: hindiLeads.length,
+        interview: interview.length,
+        linkedin: linkedin.length,
+      },
     },
     dailyLeads, weeklyLeads,
     platformDistribution: platformMap, industryDistribution: industryMap,
@@ -355,18 +457,22 @@ async function fetchAllData(forceRefresh = false) {
     return cache.data;
   }
 
-  const [sheet1Raw, hindiRaw, newDirectRaw, oldDirectRaw] = await Promise.all([
+  const [sheet1Raw, hindiRaw, newDirectRaw, oldDirectRaw, interviewRaw, linkedinRaw] = await Promise.all([
     fetchSheet(SHEET_IDS.IIP_LEADS, 'Sheet1'),
     fetchSheet(SHEET_IDS.IIP_LEADS, 'Hindi Leads'),
     fetchSheet(SHEET_IDS.NEW_LEADS_DIRECT, 'Sheet1'),
     fetchSheet(SHEET_IDS.OLD_LEADS_DIRECT, 'Sheet1'),
+    fetchSheet(SHEET_IDS.IIP_LEADS, 'Interview'),
+    fetchSheet(SHEET_IDS.IIP_LEADS, 'LinkedIn'),
   ]);
 
   const metaNew = processMetaLeads(newDirectRaw, 'new');
   const metaOld = processMetaLeads(oldDirectRaw, 'old');
   const sheet1 = processSheet1(sheet1Raw);
   const hindiLeads = processHindiLeads(hindiRaw);
-  const aggregated = aggregate(metaNew, metaOld, sheet1, hindiLeads);
+  const interview = processInterview(interviewRaw);
+  const linkedin = processLinkedIn(linkedinRaw);
+  const aggregated = aggregate(metaNew, metaOld, sheet1, hindiLeads, interview, linkedin);
 
   const data = {
     success: true,
@@ -376,6 +482,8 @@ async function fetchAllData(forceRefresh = false) {
       hindiLeadsCount: hindiRaw.length,
       newDirectCount: newDirectRaw.length,
       oldDirectCount: oldDirectRaw.length,
+      interviewCount: interviewRaw.length,
+      linkedinCount: linkedinRaw.length,
     },
     fetchedAt: new Date().toISOString(),
   };

@@ -91,7 +91,7 @@
         <div class="kpi-content">
           <span class="kpi-value" id="kpi-total-leads">-</span>
           <span class="kpi-label">Total Leads (Meta)</span>
-          <span class="src-tag"><strong>Source:</strong> IIP - New Leads - Direct + IIP - Old Leads - Direct (row count)</span>
+          <span class="src-tag"><strong>Source:</strong> IIP - New Leads - Direct + IIP - Old Leads - Direct + Interview sheet + LinkedIn sheet (row count)</span>
         </div>
       </div>
       <div class="kpi-card kpi-hindi">
@@ -124,6 +124,26 @@
           <span class="src-tag"><strong>Source:</strong> IIP - Old Leads - Direct (all rows)</span>
         </div>
       </div>
+      <div class="kpi-card kpi-interview">
+        <div class="kpi-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l5 5-5 5"/><path d="M4 4v7a4 4 0 0 0 4 4h12"/></svg>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-value" id="kpi-interview-leads">-</span>
+          <span class="kpi-label">Interview Video Ad</span>
+          <span class="src-tag"><strong>Source:</strong> IIP Leads &gt; Interview sheet (all rows)</span>
+        </div>
+      </div>
+      <div class="kpi-card kpi-linkedin">
+        <div class="kpi-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 2h-17A1.5 1.5 0 0 0 2 3.5v17A1.5 1.5 0 0 0 3.5 22h17a1.5 1.5 0 0 0 1.5-1.5v-17A1.5 1.5 0 0 0 20.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 1 1 8.3 6.5a1.78 1.78 0 0 1-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0 0 13 14.19a.66.66 0 0 0 0 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 0 1 2.7-1.4c1.55 0 3.36.86 3.36 3.66z"/></svg>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-value" id="kpi-linkedin-leads">-</span>
+          <span class="kpi-label">LinkedIn Ad</span>
+          <span class="src-tag"><strong>Source:</strong> IIP Leads &gt; LinkedIn sheet (all rows)</span>
+        </div>
+      </div>
       <div class="kpi-card kpi-calls">
         <div class="kpi-icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
@@ -132,7 +152,7 @@
           <span class="kpi-value" id="kpi-calls-made">-</span>
           <span class="kpi-label">Calls Made</span>
           <span class="kpi-sub" id="kpi-calls-checkbox">-</span>
-          <span class="src-tag"><strong>Source:</strong> IIP Leads > Sheet1, Col E (CALLED=TRUE) + IIP Leads > Hindi Leads, Col J (CALLED=TRUE)</span>
+          <span class="src-tag"><strong>Source:</strong> Sheet1 Col E + Hindi Leads Col J + Interview Col R + LinkedIn Col I (CALLED=TRUE)</span>
         </div>
       </div>
       <div class="kpi-card kpi-responded">
@@ -143,7 +163,7 @@
           <span class="kpi-value" id="kpi-responded">-</span>
           <span class="kpi-label">Responded</span>
           <span class="kpi-sub" id="kpi-responded-checkbox">-</span>
-          <span class="src-tag"><strong>Source:</strong> IIP Leads > Sheet1, Col F (RESPONDED=TRUE) + IIP Leads > Hindi Leads, Col K (RESPONDED=TRUE)</span>
+          <span class="src-tag"><strong>Source:</strong> Sheet1 Col F + Hindi Leads Col K + Interview Col S + LinkedIn Col J (RESPONDED=TRUE)</span>
         </div>
       </div>
       <div class="kpi-card kpi-callrate">
@@ -187,7 +207,7 @@
         <div class="chart-body">
           <canvas id="chart-daily-leads"></canvas>
         </div>
-        <div class="chart-src"><strong>Source:</strong> IIP - New Leads - Direct, Col B (created_time) + IIP - Old Leads - Direct, Col B (created_time). Split by campaign_name (Col H).</div>
+        <div class="chart-src"><strong>Source:</strong> New/Old Direct Col B + Interview Col B + LinkedIn Col A (created_time). Split by 5 campaigns.</div>
       </div>
       <div class="chart-card">
         <div class="chart-header">
@@ -196,7 +216,7 @@
         <div class="chart-body chart-body-doughnut">
           <canvas id="chart-campaign-split"></canvas>
         </div>
-        <div class="chart-src"><strong>Source:</strong> IIP - New Leads - Direct (Hindi Video + English Video by Col H) + IIP - Old Leads - Direct (Apple Carousel, all rows)</div>
+        <div class="chart-src"><strong>Source:</strong> New Direct (Hindi/English by Col H) + Old Direct (Apple Carousel) + Interview sheet + LinkedIn sheet</div>
       </div>
     </section>
 
@@ -209,7 +229,7 @@
         <div class="chart-body">
           <canvas id="chart-call-perf"></canvas>
         </div>
-        <div class="chart-src"><strong>Source:</strong> IIP Leads > Sheet1 (Cols E, F for Apple Carousel) + IIP Leads > Hindi Leads (Cols J, K for Hindi Video &amp; English Video). Total = row count per campaign.</div>
+        <div class="chart-src"><strong>Source:</strong> Sheet1 (Apple Carousel) + Hindi Leads (Hindi/English Video) + Interview sheet + LinkedIn sheet. CALLED &amp; RESPONDED checkboxes per row.</div>
       </div>
       <div class="chart-card">
         <div class="chart-header">
@@ -218,7 +238,7 @@
         <div class="chart-body chart-body-doughnut">
           <canvas id="chart-status"></canvas>
         </div>
-        <div class="chart-src"><strong>Source:</strong> IIP Leads > Sheet1, Col G (STATUS) + IIP Leads > Hindi Leads, Col L (STATUS)</div>
+        <div class="chart-src"><strong>Source:</strong> Sheet1 Col G + Hindi Leads Col L + Interview Col T + LinkedIn Col K (STATUS)</div>
       </div>
     </section>
 
@@ -231,7 +251,7 @@
         <div class="chart-body chart-body-doughnut">
           <canvas id="chart-platform"></canvas>
         </div>
-        <div class="chart-src"><strong>Source:</strong> IIP - New Leads - Direct, Col L (platform) + IIP - Old Leads - Direct, Col L (platform)</div>
+        <div class="chart-src"><strong>Source:</strong> New/Old Direct Col L + Interview Col L (platform) + LinkedIn (fixed = "linkedin")</div>
       </div>
       <div class="chart-card">
         <div class="chart-header">
@@ -240,7 +260,7 @@
         <div class="chart-body">
           <canvas id="chart-interest"></canvas>
         </div>
-        <div class="chart-src"><strong>Source:</strong> IIP - New Leads - Direct, Col N (why_are_you_interested) + IIP - Old Leads - Direct, Col N (why_are_you_interested)</div>
+        <div class="chart-src"><strong>Source:</strong> New/Old Direct Col N + Interview Col N (why_are_you_interested)</div>
       </div>
     </section>
 
