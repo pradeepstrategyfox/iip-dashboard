@@ -64,9 +64,34 @@ function toast(message, kind = 'info') {
 }
 
 // ─── Fetch ─────────────────────────────────────────────────────────────────
+// First-load timeout: if Vercel cold-starts and Google Sheets is slow,
+// the initial fetch can take 30+ seconds. Show a progress message after
+// 6 seconds, and abort after 60 seconds with a retry button.
 async function loadLeads(forceRefresh = false) {
   const url = forceRefresh ? '/api/leads?refresh=true' : '/api/leads';
-  const res = await fetch(url);
+
+  const ctrl = new AbortController();
+  const slowTimer = setTimeout(() => showLoadingMessage(
+    'Still loading… the first load fetches every sheet from Google and can take up to 30 seconds.'
+  ), 6000);
+  const verySlowTimer = setTimeout(() => showLoadingMessage(
+    'Almost there… Google Sheets is slow to respond. Hang on.'
+  ), 18000);
+  const killTimer = setTimeout(() => ctrl.abort(), 60000);
+
+  let res;
+  try {
+    res = await fetch(url, { signal: ctrl.signal });
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('Request timed out after 60s. Try refreshing.');
+    throw e;
+  } finally {
+    clearTimeout(slowTimer);
+    clearTimeout(verySlowTimer);
+    clearTimeout(killTimer);
+  }
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
   if (!json.success) throw new Error(json.error || 'Load failed');
   allLeads = json.leads;
@@ -74,6 +99,13 @@ async function loadLeads(forceRefresh = false) {
   document.getElementById('last-updated').textContent =
     `Updated ${new Date(json.fetchedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}`;
   document.getElementById('footer-info').textContent = `${json.count} leads · refreshed ${new Date(json.fetchedAt).toLocaleTimeString('en-IN')}`;
+}
+
+function showLoadingMessage(msg) {
+  const overlay = document.getElementById('loading-overlay');
+  if (!overlay) return;
+  const p = overlay.querySelector('p');
+  if (p) p.textContent = msg;
 }
 
 async function reloadLeads() {
@@ -547,7 +579,15 @@ async function init() {
     document.getElementById('loading-overlay').classList.add('fade-out');
     setTimeout(() => document.getElementById('loading-overlay').remove(), 500);
   } catch (e) {
-    document.getElementById('loading-overlay').remove();
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) {
+      overlay.innerHTML = `
+        <div class="loading-content">
+          <p style="color:#DC2626;font-weight:600;margin-bottom:8px;">Failed to load leads</p>
+          <p style="color:#64748B;margin-bottom:16px;">${escHtml(e.message)}</p>
+          <button class="btn-refresh" onclick="location.reload()">Retry</button>
+        </div>`;
+    }
     toast('Failed to load leads: ' + e.message, 'error');
   }
 }

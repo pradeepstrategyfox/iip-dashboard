@@ -25,7 +25,10 @@ const STATUS_OPTIONS = [
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
-  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=60');
+  // Aggressive edge caching: Vercel CDN serves cached response for 10 min,
+  // then up to 24 h of stale-while-revalidate so subsequent users never
+  // wait on a cold function start.
+  res.setHeader('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=86400');
 
   try {
     const forceRefresh = req.url?.includes('refresh=true') || req.query?.refresh === 'true';
