@@ -5,7 +5,10 @@ const SHEET_IDS = {
   OLD_LEADS_DIRECT: '1wW7AapS4ulJzUYRNiX7XTdOVknW_djZuyWRf3YdyNhs',
 };
 
-const GOOGLE_API_KEY = 'AIzaSyC2HeaC1ozAIc6wUgzS2VYFcJEhgUo3uQg';
+// API key for the Google Sheets v4 read-only endpoint. Restricted to the
+// Sheets API on the Google Cloud project. Falls back to the previous key
+// only as a safety net for local dev — production reads from the env var.
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || 'AIzaSyCmVd89eEhgQ4HF_5mA6LdnsBeXz079L1U';
 
 // ─── In-memory cache (persists across warm invocations) ─────────────────────
 let cache = { data: null, leads: null, timestamp: 0 };
