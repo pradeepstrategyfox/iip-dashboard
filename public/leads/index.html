@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IIP Leads CRM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="leads.css" />
+</head>
+<body class="leads-page">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">IIP</div>
+      <div>
+        <h1>Leads CRM</h1>
+        <p class="subtitle">Unified lead pipeline &middot; <a href="/">Dashboard</a> &middot; <a href="/sf">Source View</a></p>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="meta-info">
+        <span class="refresh-indicator">
+          <span class="pulse-dot"></span> Live
+        </span>
+        <span class="last-updated" id="last-updated">Loading...</span>
+      </div>
+      <button class="btn-refresh" id="btn-refresh" onclick="reloadLeads()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        Refresh
+      </button>
+    </div>
+  </header>
+
+  <!-- Loading overlay -->
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="loading-content">
+      <div class="spinner"></div>
+      <p>Loading leads...</p>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <section class="crm-toolbar">
+    <div class="crm-search">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" id="search" placeholder="Search by name, phone, or email…" autocomplete="off" />
+      <button class="search-clear" id="search-clear" title="Clear search">&times;</button>
+    </div>
+
+    <div class="crm-filter-group">
+      <label class="crm-filter">
+        <span class="filter-label">Campaign</span>
+        <select id="filter-campaign" multiple size="1"></select>
+      </label>
+      <label class="crm-filter">
+        <span class="filter-label">Status</span>
+        <select id="filter-status" multiple size="1"></select>
+      </label>
+      <label class="crm-filter">
+        <span class="filter-label">Caller</span>
+        <select id="filter-team" multiple size="1"></select>
+      </label>
+      <label class="crm-filter">
+        <span class="filter-label">Called?</span>
+        <select id="filter-called">
+          <option value="">All</option>
+          <option value="true">Called</option>
+          <option value="false">Not called</option>
+        </select>
+      </label>
+      <label class="crm-filter">
+        <span class="filter-label">Responded?</span>
+        <select id="filter-responded">
+          <option value="">All</option>
+          <option value="true">Responded</option>
+          <option value="false">No response</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="crm-actions">
+      <button class="btn-ghost" id="btn-clear">Clear filters</button>
+      <button class="btn-ghost" id="btn-export">Export CSV</button>
+    </div>
+  </section>
+
+  <!-- Quick chip filters -->
+  <section class="crm-chips" id="crm-chips"></section>
+
+  <!-- Stats bar -->
+  <section class="crm-stats" id="crm-stats">
+    <span class="stat-pill"><strong id="stat-total">0</strong> total</span>
+    <span class="stat-pill"><strong id="stat-shown">0</strong> shown</span>
+    <span class="stat-pill"><strong id="stat-called">0</strong> called</span>
+    <span class="stat-pill"><strong id="stat-responded">0</strong> responded</span>
+    <span class="stat-pill"><strong id="stat-unassigned">0</strong> unassigned</span>
+    <span class="stat-pill"><strong id="stat-not-updated">0</strong> not updated</span>
+  </section>
+
+  <!-- Toast container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Lead table -->
+  <section class="crm-table-wrap">
+    <table class="crm-table" id="crm-table">
+      <thead>
+        <tr>
+          <th class="col-date" data-sort="date">Date</th>
+          <th class="col-name" data-sort="name">Name</th>
+          <th class="col-phone">Phone</th>
+          <th class="col-campaign" data-sort="campaign">Campaign</th>
+          <th class="col-status" data-sort="status">Status</th>
+          <th class="col-called" data-sort="called">Called</th>
+          <th class="col-resp" data-sort="responded">Responded</th>
+          <th class="col-team" data-sort="team">Caller</th>
+          <th class="col-notes">Notes</th>
+        </tr>
+      </thead>
+      <tbody id="leads-tbody"></tbody>
+    </table>
+    <div class="empty-state" id="empty-state" style="display:none">
+      <p>No leads match the current filters.</p>
+    </div>
+  </section>
+
+  <!-- Pagination -->
+  <nav class="crm-pagination" id="crm-pagination"></nav>
+
+  <!-- Lead detail drawer -->
+  <aside class="lead-drawer" id="lead-drawer">
+    <div class="drawer-backdrop" onclick="closeDrawer()"></div>
+    <div class="drawer-panel">
+      <button class="drawer-close" onclick="closeDrawer()">&times;</button>
+      <div id="drawer-content"></div>
+    </div>
+  </aside>
+
+  <footer class="footer">
+    <p>IIP Leads CRM &bull; <span id="footer-info">Loading…</span></p>
+  </footer>
+
+  <script src="leads.js"></script>
+</body>
+</html>

@@ -8,7 +8,7 @@ const SHEET_IDS = {
 const GOOGLE_API_KEY = 'AIzaSyC2HeaC1ozAIc6wUgzS2VYFcJEhgUo3uQg';
 
 // ─── In-memory cache (persists across warm invocations) ─────────────────────
-let cache = { data: null, timestamp: 0 };
+let cache = { data: null, leads: null, timestamp: 0 };
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 // ─── Google Sheets API v4 Fetch ─────────────────────────────────────────────
@@ -26,12 +26,14 @@ async function fetchSheet(spreadsheetId, sheetName) {
   const rows = json.values || [];
   if (rows.length < 2) return [];
 
-  // First row is headers, rest is data
+  // First row is headers, rest is data. Attach _sheet + _rowNumber to every
+  // row so downstream code can identify which sheet+row each lead lives in
+  // (needed by the /api/update endpoint to write back to the right cell).
   const headers = rows[0].map((h) => (h || '').trim());
   const data = [];
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
-    const obj = {};
+    const obj = { _sheet: sheetName, _rowNumber: i + 1 };
     const cols = Math.max(headers.length, row.length);
     for (let j = 0; j < cols; j++) {
       const key = headers[j] || `_col${j}`;
@@ -136,6 +138,8 @@ function processSheet1(rows) {
       const otherDetails = (r['OTHER DETAILS'] || '').trim();
       const followUp = (r['FOLLOW UP UPDATES'] || '').trim();
       return {
+        _sheet: r._sheet,
+        _rowNumber: r._rowNumber,
         campaign: 'Apple Carousel',
         name: (r.NAME || '').trim(),
         phone: (r['PHONE NUMBER'] || '').trim(),
@@ -171,10 +175,16 @@ function processHindiLeads(rows) {
       const responded = normBool(r.RESPONDED);
       const otherDetails = (r['OTHER DETAILS'] || '').trim();
       const followUp = (r['FOLLOW UP'] || '').trim();
+      // Hindi Leads has the created_time in col A but the header is just a
+      // single space — fetchSheet stores that under the _col0 key.
+      const createdTime = r.created_time || r[' '] || r._col0 || '';
       return {
+        _sheet: r._sheet,
+        _rowNumber: r._rowNumber,
         campaign: classifyCampaign(rawCampaign, 'new'),
         campaignRaw: rawCampaign,
-        date: normDate(r.created_time),
+        date: normDate(createdTime),
+        datetime: createdTime || null,
         name: (r.NAME || '').trim(),
         phone: (r['PHONE NUMBER'] || '').trim(),
         email: (r.EMAIL || '').trim(),
@@ -212,6 +222,8 @@ function processInterview(rows) {
       const name = (r.full_name || '').trim();
       const phone = (r.phone_number || '').trim();
       return {
+        _sheet: r._sheet,
+        _rowNumber: r._rowNumber,
         // Meta-lead fields
         campaign: 'Interview Video',
         campaignRaw: rawCampaign,
@@ -253,6 +265,8 @@ function processLinkedIn(rows) {
       const fullName = `${(r['First name'] || '').trim()} ${(r['Last name'] || '').trim()}`.trim();
       const formName = (r.form_name || '').trim();
       return {
+        _sheet: r._sheet,
+        _rowNumber: r._rowNumber,
         campaign: 'LinkedIn',
         campaignRaw: formName,
         date: normDate(r.created_time),
@@ -474,6 +488,10 @@ async function fetchAllData(forceRefresh = false) {
   const linkedin = processLinkedIn(linkedinRaw);
   const aggregated = aggregate(metaNew, metaOld, sheet1, hindiLeads, interview, linkedin);
 
+  // Build the flat CRM lead list. This is what /api/leads serves and is
+  // also the source data for the /leads page table.
+  const crmLeads = buildCRMLeads({ metaNew, metaOld, sheet1, hindiLeads, interview, linkedin });
+
   const data = {
     success: true,
     aggregated,
@@ -488,11 +506,95 @@ async function fetchAllData(forceRefresh = false) {
     fetchedAt: new Date().toISOString(),
   };
 
-  cache = { data, timestamp: now };
+  cache = { data, leads: crmLeads, timestamp: now };
   return data;
 }
 
-module.exports = async function handler(req, res) {
+// ─── CRM leads ──────────────────────────────────────────────────────────────
+// Build a flat lead list suitable for the /leads page. Each entry carries
+// _sheet + _rowNumber so the /api/update endpoint can write back to the
+// exact cell. Sheet1 rows are enriched with date/email by joining
+// metaOld on phone (Sheet1 doesn't carry those columns itself).
+
+function normPhone(p) {
+  if (!p) return '';
+  // Keep just the last 10 digits — robust across "p:+91XXXXXXXXXX",
+  // "+91-XXXXXXXXXX", "91 XXXXXXXXXX", etc.
+  return String(p).replace(/[^\d]/g, '').slice(-10);
+}
+
+function buildCRMLeads({ metaNew, metaOld, sheet1, hindiLeads, interview, linkedin }) {
+  const oldByPhone = {};
+  for (const m of metaOld) {
+    const p = normPhone(m.phone);
+    if (p) oldByPhone[p] = m;
+  }
+  const newByPhone = {};
+  for (const m of metaNew) {
+    const p = normPhone(m.phone);
+    if (p) newByPhone[p] = m;
+  }
+
+  const enrichedSheet1 = sheet1.map((s) => {
+    const meta = oldByPhone[normPhone(s.phone)] || {};
+    return {
+      ...s,
+      date: meta.date || null,
+      datetime: meta.datetime || null,
+      email: s.email || meta.email || '',
+      platform: s.platform || meta.platform || '',
+      campaignName: s.campaignName || meta.campaignName || '',
+      adsetName: s.adsetName || meta.adsetName || '',
+    };
+  });
+  const enrichedHindi = hindiLeads.map((h) => {
+    const meta = newByPhone[normPhone(h.phone)] || {};
+    return {
+      ...h,
+      date: h.date || meta.date || null,
+      datetime: h.datetime || meta.datetime || null,
+      email: h.email || meta.email || '',
+      adsetName: h.adsetName || meta.adsetName || '',
+    };
+  });
+
+  return [...enrichedSheet1, ...enrichedHindi, ...interview, ...linkedin].map((l) => ({
+    id: `${l._sheet}:${l._rowNumber}`,
+    sheet: l._sheet,
+    rowNumber: l._rowNumber,
+    campaign: l.campaign,
+    date: l.date,
+    datetime: l.datetime || null,
+    name: l.name,
+    phone: l.phone,
+    email: l.email || '',
+    platform: l.platform || '',
+    industry: l.industry || '',
+    interest: l.interest || '',
+    campaignName: l.campaignName || '',
+    adsetName: l.adsetName || '',
+    formName: l.formName || '',
+    city: l.city || '',
+    called: !!l.called,
+    responded: !!l.responded,
+    status: l.status || 'Not Updated',
+    otherDetails: l.otherDetails || '',
+    followUp: l.followUp || '',
+    iipFollowup: l.iipFollowup || '',
+    team: l.team || '',
+  }));
+}
+
+async function getLeads(forceRefresh = false) {
+  await fetchAllData(forceRefresh);
+  return cache.leads || [];
+}
+
+module.exports = handler;
+module.exports.getLeads = getLeads;
+module.exports.fetchAllData = fetchAllData;
+
+async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
@@ -506,4 +608,4 @@ module.exports = async function handler(req, res) {
     console.error('API error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
-};
+}
