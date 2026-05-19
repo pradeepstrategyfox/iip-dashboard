@@ -23,7 +23,8 @@
     },
     { "src": "/api/refresh", "dest": "/api/data.js?refresh=true" },
     { "src": "/api/update", "dest": "/api/update.js" },
-    { "src": "/leads/?", "dest": "/public/leads/index.html" },
+    { "src": "/leads", "status": 308, "headers": { "Location": "/leads/" } },
+    { "src": "/leads/", "dest": "/public/leads/index.html" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ]
 }
