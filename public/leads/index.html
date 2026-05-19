@@ -52,35 +52,49 @@
     </div>
 
     <div class="crm-filter-group">
-      <label class="crm-filter">
+      <div class="crm-filter" data-filter="campaign">
         <span class="filter-label">Campaign</span>
-        <select id="filter-campaign" multiple size="1"></select>
-      </label>
-      <label class="crm-filter">
+        <button type="button" class="filter-trigger" data-target="pop-campaign">
+          <span class="filter-trigger-label">All campaigns</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+      <div class="crm-filter" data-filter="status">
         <span class="filter-label">Status</span>
-        <select id="filter-status" multiple size="1"></select>
-      </label>
-      <label class="crm-filter">
+        <button type="button" class="filter-trigger" data-target="pop-status">
+          <span class="filter-trigger-label">All statuses</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+      <div class="crm-filter" data-filter="team">
         <span class="filter-label">Caller</span>
-        <select id="filter-team" multiple size="1"></select>
-      </label>
-      <label class="crm-filter">
+        <button type="button" class="filter-trigger" data-target="pop-team">
+          <span class="filter-trigger-label">All callers</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+      <div class="crm-filter" data-filter="called">
         <span class="filter-label">Called?</span>
-        <select id="filter-called">
-          <option value="">All</option>
-          <option value="true">Called</option>
-          <option value="false">Not called</option>
-        </select>
-      </label>
-      <label class="crm-filter">
+        <button type="button" class="filter-trigger" data-target="pop-called">
+          <span class="filter-trigger-label">All</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+      <div class="crm-filter" data-filter="responded">
         <span class="filter-label">Responded?</span>
-        <select id="filter-responded">
-          <option value="">All</option>
-          <option value="true">Responded</option>
-          <option value="false">No response</option>
-        </select>
-      </label>
+        <button type="button" class="filter-trigger" data-target="pop-responded">
+          <span class="filter-trigger-label">All</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
     </div>
+
+    <!-- Filter popovers (positioned absolutely, anchored to triggers in JS) -->
+    <div class="filter-pop" id="pop-campaign" hidden></div>
+    <div class="filter-pop" id="pop-status" hidden></div>
+    <div class="filter-pop" id="pop-team" hidden></div>
+    <div class="filter-pop" id="pop-called" hidden></div>
+    <div class="filter-pop" id="pop-responded" hidden></div>
 
     <div class="crm-actions">
       <button class="btn-ghost" id="btn-clear">Clear filters</button>

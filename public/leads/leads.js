@@ -181,16 +181,16 @@ function renderChips() {
     chips.push({ key: 'search', label: `Search: "${filters.search}"`, clear: () => { $('#search').value = ''; filters.search = ''; $('.crm-search').classList.remove('has-value'); } });
   }
   for (const c of filters.campaign) {
-    chips.push({ key: 'c:' + c, label: c, clear: () => { filters.campaign.delete(c); rebuildMultiSelect('filter-campaign', filters.campaign); } });
+    chips.push({ key: 'c:' + c, label: c, clear: () => { filters.campaign.delete(c); updateTriggerLabel('campaign'); } });
   }
   for (const s of filters.status) {
-    chips.push({ key: 's:' + s, label: s, clear: () => { filters.status.delete(s); rebuildMultiSelect('filter-status', filters.status); } });
+    chips.push({ key: 's:' + s, label: s, clear: () => { filters.status.delete(s); updateTriggerLabel('status'); } });
   }
   for (const t of filters.team) {
-    chips.push({ key: 't:' + t, label: 'Caller: ' + t, clear: () => { filters.team.delete(t); rebuildMultiSelect('filter-team', filters.team); } });
+    chips.push({ key: 't:' + t, label: 'Caller: ' + t, clear: () => { filters.team.delete(t); updateTriggerLabel('team'); } });
   }
-  if (filters.called)    chips.push({ key: 'called', label: filters.called === 'true' ? 'Called' : 'Not called', clear: () => { filters.called = ''; $('#filter-called').value = ''; } });
-  if (filters.responded) chips.push({ key: 'resp',   label: filters.responded === 'true' ? 'Responded' : 'No response', clear: () => { filters.responded = ''; $('#filter-responded').value = ''; } });
+  if (filters.called)    chips.push({ key: 'called', label: filters.called === 'true' ? 'Called' : 'Not called', clear: () => { filters.called = ''; updateTriggerLabel('called'); } });
+  if (filters.responded) chips.push({ key: 'resp',   label: filters.responded === 'true' ? 'Responded' : 'No response', clear: () => { filters.responded = ''; updateTriggerLabel('responded'); } });
 
   const container = $('#crm-chips');
   container.innerHTML = chips.map((c) => `<span class="chip" data-key="${escHtml(c.key)}">${escHtml(c.label)} <button title="Remove">&times;</button></span>`).join('');
@@ -468,32 +468,193 @@ async function postUpdate(lead, updates) {
   return json;
 }
 
-// ─── Filter UI population ──────────────────────────────────────────────────
-function rebuildMultiSelect(id, selectedSet) {
-  const sel = document.getElementById(id);
-  $$('#' + id + ' option').forEach((opt) => {
-    opt.selected = selectedSet.has(opt.value);
+// ─── Filter dropdowns ──────────────────────────────────────────────────────
+// Each filter has a trigger button that opens an absolutely-positioned
+// popover. Inside the popover the user makes checkbox/radio selections —
+// those selections only commit to `filters` (and trigger a re-render)
+// when they click Apply, exactly like the user requested.
+
+const FILTER_DEFS = {
+  campaign: { kind: 'multi', label: 'campaigns', allLabel: 'All campaigns' },
+  status:   { kind: 'multi', label: 'statuses',  allLabel: 'All statuses'  },
+  team:     { kind: 'multi', label: 'callers',   allLabel: 'All callers'   },
+  called: {
+    kind: 'single', label: 'called', allLabel: 'All',
+    values: [
+      { v: '',      l: 'All'        },
+      { v: 'true',  l: 'Called'     },
+      { v: 'false', l: 'Not called' },
+    ],
+  },
+  responded: {
+    kind: 'single', label: 'responded', allLabel: 'All',
+    values: [
+      { v: '',      l: 'All'         },
+      { v: 'true',  l: 'Responded'   },
+      { v: 'false', l: 'No response' },
+    ],
+  },
+};
+
+// Returns the list of options for a given filter, derived from the API
+// response. Multi-selects get their option set from `options`.
+function getFilterOptions(key) {
+  if (key === 'campaign') return options.campaigns;
+  if (key === 'status') {
+    return [...options.statuses].sort((a, b) => {
+      if (a === 'Not Updated') return 1;
+      if (b === 'Not Updated') return -1;
+      return a.localeCompare(b);
+    });
+  }
+  if (key === 'team') {
+    return ['Unassigned', ...options.teams.filter((t) => t && t !== 'Unassigned')];
+  }
+  return [];
+}
+
+// Build (or rebuild) the popover body for one filter.
+function renderFilterPopover(key) {
+  const def = FILTER_DEFS[key];
+  const pop = document.getElementById('pop-' + key);
+  if (!pop) return;
+
+  const current = filters[key];
+
+  if (def.kind === 'multi') {
+    const opts = getFilterOptions(key);
+    // Pending state is a fresh Set, seeded with the currently-applied values.
+    pop.dataset.pending = JSON.stringify([...current]);
+    pop.innerHTML = `
+      <div class="filter-pop-options">
+        ${opts.length === 0
+          ? '<div style="padding:14px;text-align:center;color:#94A3B8;font-size:0.8rem;">No options yet</div>'
+          : opts.map((v) => `
+              <label class="filter-pop-option">
+                <input type="checkbox" value="${escHtml(v)}" ${current.has(v) ? 'checked' : ''} />
+                <span class="opt-label">${escHtml(v)}</span>
+              </label>
+            `).join('')}
+      </div>
+      <div class="filter-pop-actions">
+        <button type="button" data-action="clear">Clear</button>
+        <button type="button" class="primary" data-action="apply">Apply</button>
+      </div>
+    `;
+  } else {
+    // single-select (radio)
+    pop.innerHTML = `
+      <div class="filter-pop-options">
+        ${def.values.map((opt) => `
+          <label class="filter-pop-option">
+            <input type="radio" name="pop-${escHtml(key)}-radio" value="${escHtml(opt.v)}" ${current === opt.v ? 'checked' : ''} />
+            <span class="opt-label">${escHtml(opt.l)}</span>
+          </label>
+        `).join('')}
+      </div>
+      <div class="filter-pop-actions">
+        <button type="button" data-action="clear">Clear</button>
+        <button type="button" class="primary" data-action="apply">Apply</button>
+      </div>
+    `;
+  }
+
+  // Wire Apply / Clear inside the popover
+  pop.querySelector('[data-action="apply"]').addEventListener('click', (e) => {
+    e.stopPropagation();
+    commitFilter(key);
+    closeAllPopovers();
+  });
+  pop.querySelector('[data-action="clear"]').addEventListener('click', (e) => {
+    e.stopPropagation();
+    // Just uncheck inside the popover; don't apply until user clicks Apply
+    pop.querySelectorAll('input[type="checkbox"]').forEach((cb) => { cb.checked = false; });
+    const firstRadio = pop.querySelector('input[type="radio"][value=""]');
+    if (firstRadio) firstRadio.checked = true;
   });
 }
 
+function commitFilter(key) {
+  const def = FILTER_DEFS[key];
+  const pop = document.getElementById('pop-' + key);
+  if (!pop) return;
+  if (def.kind === 'multi') {
+    const chosen = new Set();
+    pop.querySelectorAll('input[type="checkbox"]:checked').forEach((cb) => chosen.add(cb.value));
+    filters[key] = chosen;
+  } else {
+    const sel = pop.querySelector('input[type="radio"]:checked');
+    filters[key] = sel ? sel.value : '';
+  }
+  updateTriggerLabel(key);
+  render();
+}
+
+function updateTriggerLabel(key) {
+  const def = FILTER_DEFS[key];
+  const trigger = document.querySelector(`.filter-trigger[data-target="pop-${key}"]`);
+  if (!trigger) return;
+  const labelEl = trigger.querySelector('.filter-trigger-label');
+  const current = filters[key];
+
+  if (def.kind === 'multi') {
+    const n = current.size;
+    if (n === 0) {
+      labelEl.textContent = def.allLabel;
+      trigger.classList.remove('active');
+      // remove count badge if present
+      const b = trigger.querySelector('.count-badge');
+      if (b) b.remove();
+    } else if (n === 1) {
+      labelEl.textContent = [...current][0];
+      trigger.classList.add('active');
+      const b = trigger.querySelector('.count-badge');
+      if (b) b.remove();
+    } else {
+      labelEl.textContent = `${n} ${def.label}`;
+      trigger.classList.add('active');
+      let b = trigger.querySelector('.count-badge');
+      if (!b) {
+        b = document.createElement('span');
+        b.className = 'count-badge';
+        trigger.insertBefore(b, trigger.querySelector('svg'));
+      }
+      b.textContent = String(n);
+    }
+  } else {
+    if (!current) {
+      labelEl.textContent = def.allLabel;
+      trigger.classList.remove('active');
+    } else {
+      const matched = def.values.find((v) => v.v === current);
+      labelEl.textContent = matched ? matched.l : current;
+      trigger.classList.add('active');
+    }
+  }
+}
+
+function openPopover(key) {
+  closeAllPopovers();
+  renderFilterPopover(key);
+  const pop = document.getElementById('pop-' + key);
+  const trigger = document.querySelector(`.filter-trigger[data-target="pop-${key}"]`);
+  if (!pop || !trigger) return;
+  const rect = trigger.getBoundingClientRect();
+  pop.style.top = `${rect.bottom + window.scrollY + 4}px`;
+  pop.style.left = `${rect.left + window.scrollX}px`;
+  pop.hidden = false;
+  trigger.classList.add('open');
+}
+
+function closeAllPopovers() {
+  $$('.filter-pop').forEach((p) => { p.hidden = true; });
+  $$('.filter-trigger.open').forEach((t) => t.classList.remove('open'));
+}
+
 function populateFilters() {
-  const fillSelect = (id, vals, currentSet) => {
-    const sel = document.getElementById(id);
-    sel.innerHTML = vals.map((v) => `<option value="${escHtml(v)}"${currentSet.has(v) ? ' selected' : ''}>${escHtml(v)}</option>`).join('');
-  };
-
-  fillSelect('filter-campaign', options.campaigns, filters.campaign);
-
-  // Status: prefer canonical list from API, sorted with "Not Updated" last
-  const statusVals = [...options.statuses].sort((a, b) => {
-    if (a === 'Not Updated') return 1;
-    if (b === 'Not Updated') return -1;
-    return a.localeCompare(b);
-  });
-  fillSelect('filter-status', statusVals, filters.status);
-
-  const teamVals = ['Unassigned', ...options.teams.filter((t) => t && t !== 'Unassigned')];
-  fillSelect('filter-team', teamVals, filters.team);
+  // Refresh trigger labels (e.g. after data reload). Popovers are
+  // re-rendered lazily on open, so options always reflect latest data.
+  ['campaign', 'status', 'team', 'called', 'responded'].forEach(updateTriggerLabel);
 }
 
 // ─── CSV export ────────────────────────────────────────────────────────────
@@ -529,26 +690,36 @@ function wireFilters() {
     render();
   });
 
-  const bindMulti = (id, set) => {
-    document.getElementById(id).addEventListener('change', (e) => {
-      set.clear();
-      for (const opt of e.target.selectedOptions) set.add(opt.value);
-      render();
+  // Each trigger button opens its popover; clicking the same trigger
+  // again toggles it; clicking outside closes any open popover.
+  $$('.filter-trigger').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const key = btn.dataset.target.replace(/^pop-/, '');
+      const pop = document.getElementById(btn.dataset.target);
+      if (pop && !pop.hidden) {
+        closeAllPopovers();
+      } else {
+        openPopover(key);
+      }
     });
-  };
-  bindMulti('filter-campaign', filters.campaign);
-  bindMulti('filter-status', filters.status);
-  bindMulti('filter-team', filters.team);
+  });
 
-  $('#filter-called').addEventListener('change', (e) => { filters.called = e.target.value; render(); });
-  $('#filter-responded').addEventListener('change', (e) => { filters.responded = e.target.value; render(); });
+  // Click outside any popover closes them all
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.filter-pop') || e.target.closest('.filter-trigger')) return;
+    closeAllPopovers();
+  });
+
+  // Reposition open popovers if the window resizes / scrolls
+  window.addEventListener('resize', closeAllPopovers);
+  window.addEventListener('scroll', closeAllPopovers, true);
 
   $('#btn-clear').addEventListener('click', () => {
     filters = { search: '', campaign: new Set(), status: new Set(), team: new Set(), called: '', responded: '' };
     $('#search').value = '';
     $('.crm-search').classList.remove('has-value');
-    $('#filter-called').value = '';
-    $('#filter-responded').value = '';
+    closeAllPopovers();
     populateFilters();
     render();
   });
